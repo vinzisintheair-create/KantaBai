@@ -1,0 +1,51 @@
+{
+  "name": "kantabai",
+  "version": "1.0.0",
+  "description": "Premium Offline-First Videoke Application with Mobile Companion",
+  "main": "main.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node verify.js",
+    "build": "electron-builder --win"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ip": "^2.0.1",
+    "qrcode": "^1.5.3",
+    "socket.io": "^4.7.5",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "electron": "^30.0.1",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.kantabai.app",
+    "productName": "KantaBai",
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "files": [
+      "**/*",
+      "!mock_library/**/*",
+      "!verify.js",
+      "!kantabai.db",
+      "!settings/settings.json"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/sqlite3/**/*"
+    ]
+  },
+  "author": "Antigravity",
+  "license": "ISC"
+}
