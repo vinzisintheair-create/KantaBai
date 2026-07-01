@@ -28,6 +28,12 @@ let nowPlaying = null;
 let systemSettings = null;
 let isAdminVerified = false;
 let idleTimeout = null;
+let currentVideoPath = '';
+
+// Helper to safely URL encode filepath segments for special character support
+function encodePath(filePath) {
+  return filePath.split('/').map(encodeURIComponent).join('/');
+}
 
 // DOM Elements
 const sidebarNav = document.getElementById('sidebar-nav');
@@ -299,11 +305,14 @@ function setupEventListeners() {
     footerVolumeSlider.value = e.target.value;
     updateVolume(e.target.value);
   });
+  settingsVolume.addEventListener('change', saveSettings);
+
   footerVolumeSlider.addEventListener('input', (e) => {
     settingsVolume.value = e.target.value;
     settingsVolumeLabel.textContent = `${e.target.value}%`;
     updateVolume(e.target.value);
   });
+  footerVolumeSlider.addEventListener('change', saveSettings);
 
   // Save on input change for performance settings
   settingsFullscreen.addEventListener('change', saveSettings);
@@ -541,11 +550,9 @@ function updateQueueUI(queue, current) {
       const el = document.createElement('div');
       el.className = 'glass-panel p-4 rounded-2xl flex items-center gap-4 group hover:border-primary/30 transition-all';
       
-      let dragHandle = '';
       let actionButtons = '';
       
       if (isAdminVerified) {
-        dragHandle = `<div class="cursor-grab text-on-surface-variant/40 hover:text-on-surface"><span class="material-symbols-outlined">drag_indicator</span></div>`;
         actionButtons = `
           <button class="p-1 text-on-surface-variant hover:text-primary transition-all" onclick="bumpSongOrder(${item.queue_id})"><span class="material-symbols-outlined text-md">arrow_upward</span></button>
           <button class="p-1 text-on-surface-variant hover:text-status-error transition-all" onclick="removeQueueItem(${item.queue_id})"><span class="material-symbols-outlined text-md">close</span></button>
@@ -553,7 +560,6 @@ function updateQueueUI(queue, current) {
       }
 
       el.innerHTML = `
-        ${dragHandle}
         <div class="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center text-on-surface-variant font-bold text-xs select-none">
           ${index + 1}
         </div>
@@ -579,14 +585,13 @@ function updateQueueUI(queue, current) {
     footerSingerName.textContent = nowPlaying.singer_name;
     
     // Set video src if changed
-    const videoUrl = `${apiBaseUrl}/media/${nowPlaying.file_path}`;
-    if (videoElement.src.indexOf(encodeURI(nowPlaying.file_path)) === -1) {
+    const videoUrl = `${apiBaseUrl}/media/${encodePath(nowPlaying.file_path)}`;
+    if (currentVideoPath !== nowPlaying.file_path) {
+      currentVideoPath = nowPlaying.file_path;
       videoElement.src = videoUrl;
       videoElement.load();
       videoElement.play().catch(console.error);
     }
-
-
 
     fsSongTitle.textContent = nowPlaying.title;
     fsSongArtist.textContent = nowPlaying.artist;
@@ -600,6 +605,7 @@ function updateQueueUI(queue, current) {
     footerSongTitle.textContent = 'No Song Playing';
     footerSingerName.textContent = '--';
     
+    currentVideoPath = '';
     videoElement.src = '';
     fsSongTitle.textContent = '--';
     fsSongArtist.textContent = '--';
@@ -638,7 +644,8 @@ function updateQueueUI(queue, current) {
 async function bumpSongOrder(queueId) {
   // Move item up in sort order
   const index = queueList.findIndex(item => item.queue_id === queueId);
-  if (index <= 1) return; // Already first pending or active
+  if (index <= 0) return;
+  if (index === 1 && queueList[0].status === 'singing') return; // Cannot bump first pending song above currently singing song
 
   const targetItem = queueList[index];
   const upperItem = queueList[index - 1];
@@ -650,18 +657,19 @@ async function bumpSongOrder(queueId) {
   ];
 
   try {
-    const res = await fetch('/api/settings', { // Wait, do we have reorder endpoint? We added updateQueueOrder in db.js. Let's make an API endpoint for reorder!
-      // Wait, we didn't add the /api/queue/reorder route explicitly in server.js!
-      // Let's modify server.js if needed, or we can just send it via socket. Let's send a post request to /api/queue/reorder!
-      // Let's check how we can do this.
-      // Ah! We can easily call fetch to /api/queue/reorder or wait!
-      // Let's check: did we add it in server.js? No, we had getQueue, addToQueue.
-      // Let's write a route for reordering in server.js or implement it dynamically.
-      // Actually, let's write a request to `/api/queue/reorder` which we will implement, or edit server.js to add it!
-      // Let's check. Yes, let's edit server.js to add `/api/queue/reorder` and `/api/queue/delete` endpoints!
+    const res = await fetch('/api/queue/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orders: updates })
     });
+    const data = await res.json();
+    if (data.success) {
+      loadQueue();
+    } else {
+      console.error('Failed to reorder queue:', data.error);
+    }
   } catch (err) {
-    console.error(err);
+    console.error('Error bumping song order:', err);
   }
 }
 

@@ -108,6 +108,21 @@ function createServer() {
     }
   });
 
+  // Reorder queue items
+  app.post('/api/queue/reorder', async (req, res) => {
+    try {
+      const { orders } = req.body;
+      if (!Array.isArray(orders)) {
+        return res.status(400).json({ success: false, error: 'Orders must be an array.' });
+      }
+      await db.updateQueueOrder(orders);
+      await broadcastQueueUpdate();
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // Set queue item status to singing
   app.post('/api/queue/singing/:id', async (req, res) => {
     try {

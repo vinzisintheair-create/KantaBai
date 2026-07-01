@@ -25,6 +25,7 @@
     "appId": "com.kantabai.app",
     "productName": "KantaBai",
     "win": {
+      "icon": "KantaBai_Transparent_Icon.ico",
       "target": [
         {
           "target": "portable",

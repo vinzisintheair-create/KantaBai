@@ -29,21 +29,25 @@ function parseFilename(filename) {
 }
 
 function getFilesRecursively(dir, fileList = []) {
-  if (!fs.existsSync(dir)) return fileList;
-  
-  const files = fs.readdirSync(dir);
-  for (const file of files) {
-    const filePath = path.join(dir, file);
-    const stat = fs.statSync(filePath);
+  try {
+    if (!fs.existsSync(dir)) return fileList;
     
-    if (stat.isDirectory()) {
-      getFilesRecursively(filePath, fileList);
-    } else {
-      const ext = path.extname(file).toLowerCase();
-      if (SUPPORTED_EXTENSIONS.includes(ext)) {
-        fileList.push(filePath);
+    const files = fs.readdirSync(dir);
+    for (const file of files) {
+      const filePath = path.join(dir, file);
+      const stat = fs.statSync(filePath);
+      
+      if (stat.isDirectory()) {
+        getFilesRecursively(filePath, fileList);
+      } else {
+        const ext = path.extname(file).toLowerCase();
+        if (SUPPORTED_EXTENSIONS.includes(ext)) {
+          fileList.push(filePath);
+        }
       }
     }
+  } catch (err) {
+    console.error(`Error scanning directory ${dir}:`, err);
   }
   return fileList;
 }

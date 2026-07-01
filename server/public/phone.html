@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html class="dark" lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
   <title>KantaBai - Remote Controller</title>
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
-  
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet">
+
   <style>
     .glass-panel {
       background: rgba(26, 33, 26, 0.7);
@@ -14,6 +17,7 @@
       -webkit-backdrop-filter: blur(20px);
       border: 1px solid rgba(255, 255, 255, 0.08);
     }
+
     ::-webkit-scrollbar {
       display: none;
     }
@@ -40,10 +44,12 @@
     }
   </script>
 </head>
+
 <body class="bg-background text-on-surface font-sans select-none flex flex-col min-h-screen">
 
   <!-- Header -->
-  <header class="sticky top-0 bg-surface/90 backdrop-blur-md border-b border-white/5 px-4 py-4 flex items-center justify-between z-30">
+  <header
+    class="sticky top-0 bg-surface/90 backdrop-blur-md border-b border-white/5 px-4 py-4 flex items-center justify-between z-30">
     <div class="flex items-center gap-2">
       <div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-on-primary shadow-md">
         <span class="material-symbols-outlined font-bold text-lg">mic_external_on</span>
@@ -53,8 +59,9 @@
         <p class="text-[8px] text-on-surface-variant uppercase tracking-widest font-bold mt-0.5">Mobile Remote</p>
       </div>
     </div>
-    
-    <div class="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold border border-primary/20 flex items-center gap-1">
+
+    <div
+      class="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold border border-primary/20 flex items-center gap-1">
       <span class="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
       <span>Connected</span>
     </div>
@@ -64,7 +71,8 @@
   <section class="p-4">
     <div class="glass-panel p-4 rounded-2xl flex items-center justify-between shadow-lg">
       <div class="flex items-center gap-3 min-w-0 flex-1">
-        <div class="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center text-primary flex-shrink-0">
+        <div
+          class="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center text-primary flex-shrink-0">
           <span class="material-symbols-outlined text-xl animate-[pulse_1.5s_infinite]">music_note</span>
         </div>
         <div class="min-w-0 flex-1">
@@ -74,7 +82,8 @@
         </div>
       </div>
       <div class="flex flex-col items-end pl-4 border-l border-white/10 flex-shrink-0">
-        <span class="text-[9px] text-on-surface-variant uppercase font-bold tracking-wider leading-none mb-1">Waitlist</span>
+        <span
+          class="text-[9px] text-on-surface-variant uppercase font-bold tracking-wider leading-none mb-1">Waitlist</span>
         <span id="queue-count" class="text-xs font-bold text-white">0 songs</span>
       </div>
     </div>
@@ -83,18 +92,32 @@
   <!-- Search & Filters -->
   <section class="px-4 pb-4 sticky top-[73px] bg-background z-20 space-y-3">
     <div class="relative">
-      <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
-      <input id="search-input" type="text" placeholder="Search song title or artist..." class="w-full bg-surface-container-high/60 border-none rounded-full py-2.5 pl-11 pr-5 text-sm focus:ring-1 focus:ring-primary/50 text-on-surface placeholder:text-on-surface-variant/50 outline-none">
+      <span
+        class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
+      <input id="search-input" type="text" placeholder="Search song title or artist..."
+        class="w-full bg-surface-container-high/60 border-none rounded-full py-2.5 pl-11 pr-5 text-sm focus:ring-1 focus:ring-primary/50 text-on-surface placeholder:text-on-surface-variant/50 outline-none">
     </div>
-    
+
     <!-- Category Scroller -->
     <div class="flex gap-2 overflow-x-auto py-1 scrollbar-none" id="categories-bar">
-      <button class="cat-btn px-4 py-1.5 rounded-full bg-primary text-on-primary font-bold text-xs flex-shrink-0 transition-transform active:scale-95" data-cat="All Songs">All Songs</button>
-      <button class="cat-btn px-4 py-1.5 rounded-full bg-surface-container border border-white/5 text-on-surface-variant font-semibold text-xs flex-shrink-0 transition-transform active:scale-95" data-cat="English">English</button>
-      <button class="cat-btn px-4 py-1.5 rounded-full bg-surface-container border border-white/5 text-on-surface-variant font-semibold text-xs flex-shrink-0 transition-transform active:scale-95" data-cat="OPM">OPM</button>
-      <button class="cat-btn px-4 py-1.5 rounded-full bg-surface-container border border-white/5 text-on-surface-variant font-semibold text-xs flex-shrink-0 transition-transform active:scale-95" data-cat="Pop">Pop</button>
-      <button class="cat-btn px-4 py-1.5 rounded-full bg-surface-container border border-white/5 text-on-surface-variant font-semibold text-xs flex-shrink-0 transition-transform active:scale-95" data-cat="Rock">Rock</button>
-      <button class="cat-btn px-4 py-1.5 rounded-full bg-surface-container border border-white/5 text-on-surface-variant font-semibold text-xs flex-shrink-0 transition-transform active:scale-95" data-cat="Ballads">Ballads</button>
+      <button
+        class="cat-btn px-4 py-1.5 rounded-full bg-primary text-on-primary font-bold text-xs flex-shrink-0 transition-transform active:scale-95"
+        data-cat="All Songs">All Songs</button>
+      <button
+        class="cat-btn px-4 py-1.5 rounded-full bg-surface-container border border-white/5 text-on-surface-variant font-semibold text-xs flex-shrink-0 transition-transform active:scale-95"
+        data-cat="English">English</button>
+      <button
+        class="cat-btn px-4 py-1.5 rounded-full bg-surface-container border border-white/5 text-on-surface-variant font-semibold text-xs flex-shrink-0 transition-transform active:scale-95"
+        data-cat="OPM">OPM</button>
+      <button
+        class="cat-btn px-4 py-1.5 rounded-full bg-surface-container border border-white/5 text-on-surface-variant font-semibold text-xs flex-shrink-0 transition-transform active:scale-95"
+        data-cat="Pop">Pop</button>
+      <button
+        class="cat-btn px-4 py-1.5 rounded-full bg-surface-container border border-white/5 text-on-surface-variant font-semibold text-xs flex-shrink-0 transition-transform active:scale-95"
+        data-cat="Rock">Rock</button>
+      <button
+        class="cat-btn px-4 py-1.5 rounded-full bg-surface-container border border-white/5 text-on-surface-variant font-semibold text-xs flex-shrink-0 transition-transform active:scale-95"
+        data-cat="Ballads">Ballads</button>
     </div>
   </section>
 
@@ -130,13 +153,16 @@
       </button>
       <h3 class="text-md font-bold mb-1 text-white">Add to Queue</h3>
       <p id="modal-song-details" class="text-xs text-on-surface-variant mb-4">Song Title - Artist</p>
-      
+
       <div class="space-y-4">
         <div class="flex flex-col gap-1">
           <label class="text-xs font-bold text-on-surface-variant">Singer Name</label>
-          <input id="singer-name-input" type="text" placeholder="Enter your name..." value="Guest" class="w-full bg-surface-container-highest border border-white/5 rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none">
+          <input id="singer-name-input" type="text" placeholder="Enter your name..." value=""
+            class="w-full bg-surface-container-highest border border-white/5 rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none">
         </div>
-        <button id="modal-submit-btn" class="w-full bg-primary text-on-primary py-3 rounded-xl text-xs font-bold hover:opacity-90 active:scale-95 transition-transform">Submit Request</button>
+        <button id="modal-submit-btn"
+          class="w-full bg-primary text-on-primary py-3 rounded-xl text-xs font-bold hover:opacity-90 active:scale-95 transition-transform">Submit
+          Request</button>
       </div>
     </div>
   </div>
@@ -144,4 +170,5 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="phone.js"></script>
 </body>
+
 </html>
