@@ -165,6 +165,21 @@ function createServer() {
     res.json({ success: true, settings: settingsManager.load() });
   });
 
+  // Verify admin password from companion app
+  app.post('/api/admin/verify', (req, res) => {
+    try {
+      const { password } = req.body;
+      const settings = settingsManager.load();
+      if (password === settings.adminPassword) {
+        res.json({ success: true });
+      } else {
+        res.json({ success: false, error: 'Incorrect Administrator Password.' });
+      }
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // Save settings and update express static route if library path changed
   app.post('/api/settings', async (req, res) => {
     try {

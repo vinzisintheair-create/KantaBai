@@ -98,6 +98,11 @@ if (window.electronAPI) {
     videoElement.pause();
   });
 
+  window.electronAPI.onProjectorMessage('projector-stop', () => {
+    videoElement.pause();
+    videoElement.currentTime = 0;
+  });
+
   window.electronAPI.onProjectorMessage('projector-volume', (vol) => {
     videoElement.volume = vol / 100;
   });

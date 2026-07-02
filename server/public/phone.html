@@ -60,10 +60,16 @@
       </div>
     </div>
 
-    <div
-      class="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold border border-primary/20 flex items-center gap-1">
-      <span class="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
-      <span>Connected</span>
+    <div class="flex items-center gap-2">
+      <button id="admin-toggle-btn" class="px-2.5 py-1 rounded-full bg-surface-container border border-white/5 text-on-surface-variant text-[10px] font-bold hover:bg-surface-container-high flex items-center gap-1 active:scale-95 transition-all">
+        <span class="material-symbols-outlined text-[12px] font-bold">lock</span>
+        <span id="admin-toggle-text">Admin</span>
+      </button>
+      <div
+        class="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold border border-primary/20 flex items-center gap-1">
+        <span class="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
+        <span>Connected</span>
+      </div>
     </div>
   </header>
 
@@ -85,6 +91,38 @@
         <span
           class="text-[9px] text-on-surface-variant uppercase font-bold tracking-wider leading-none mb-1">Waitlist</span>
         <span id="queue-count" class="text-xs font-bold text-white">0 songs</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Admin Controls Card (hidden by default) -->
+  <section id="admin-controls" class="hidden px-4 pb-4">
+    <div class="glass-panel p-4 rounded-2xl shadow-lg border border-primary/20">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-primary text-sm font-bold animate-[pulse_2s_infinite]">admin_panel_settings</span>
+          <h3 class="text-xs uppercase font-extrabold tracking-wider text-primary">Admin Control Panel</h3>
+        </div>
+        <span class="text-[9px] text-on-surface-variant font-bold uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">Authorized</span>
+      </div>
+      
+      <div class="grid grid-cols-4 gap-2">
+        <button id="ctrl-btn-play" class="flex flex-col items-center justify-center p-3 rounded-xl bg-surface-container hover:bg-surface-container-high border border-white/5 active:scale-95 transition-all gap-1">
+          <span class="material-symbols-outlined text-lg text-primary font-bold">play_arrow</span>
+          <span class="text-[9px] font-bold text-on-surface-variant uppercase">Play</span>
+        </button>
+        <button id="ctrl-btn-pause" class="flex flex-col items-center justify-center p-3 rounded-xl bg-surface-container hover:bg-surface-container-high border border-white/5 active:scale-95 transition-all gap-1">
+          <span class="material-symbols-outlined text-lg text-primary font-bold">pause</span>
+          <span class="text-[9px] font-bold text-on-surface-variant uppercase">Pause</span>
+        </button>
+        <button id="ctrl-btn-stop" class="flex flex-col items-center justify-center p-3 rounded-xl bg-surface-container hover:bg-surface-container-high border border-white/5 active:scale-95 transition-all gap-1">
+          <span class="material-symbols-outlined text-lg text-red-400 font-bold">stop</span>
+          <span class="text-[9px] font-bold text-on-surface-variant uppercase">Stop</span>
+        </button>
+        <button id="ctrl-btn-skip" class="flex flex-col items-center justify-center p-3 rounded-xl bg-surface-container hover:bg-surface-container-high border border-white/5 active:scale-95 transition-all gap-1">
+          <span class="material-symbols-outlined text-lg text-primary font-bold">skip_next</span>
+          <span class="text-[9px] font-bold text-on-surface-variant uppercase">Skip</span>
+        </button>
       </div>
     </div>
   </section>
@@ -188,6 +226,27 @@
         <button id="modal-submit-btn"
           class="w-full bg-primary text-on-primary py-3 rounded-xl text-xs font-bold hover:opacity-90 active:scale-95 transition-transform">Submit
           Request</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Admin Authentication Modal -->
+  <div id="modal-admin-auth" class="fixed inset-0 bg-black/85 z-50 flex items-center justify-center hidden px-4">
+    <div class="glass-panel p-6 rounded-2xl w-full max-w-sm shadow-2xl relative">
+      <button id="modal-admin-auth-close" class="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+      <h3 class="text-md font-bold mb-1 text-white">Admin Access</h3>
+      <p class="text-xs text-on-surface-variant mb-4">Enter master password to enable player controls.</p>
+
+      <div class="space-y-4">
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-bold text-on-surface-variant">Admin Password</label>
+          <input id="admin-auth-password-input" type="password" placeholder="Enter password..."
+            class="w-full bg-surface-container-highest border border-white/5 rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white">
+        </div>
+        <button id="modal-admin-auth-submit-btn"
+          class="w-full bg-primary text-on-primary py-3 rounded-xl text-xs font-bold hover:opacity-90 active:scale-95 transition-all">Verify Password</button>
       </div>
     </div>
   </div>

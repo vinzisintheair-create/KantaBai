@@ -167,6 +167,8 @@ function setupSocketHandlers() {
       skipSong();
     } else if (data.action === 'restart') {
       restartSong();
+    } else if (data.action === 'stop') {
+      stopVideo();
     }
   });
 
@@ -813,6 +815,12 @@ function playVideo() {
 function pauseVideo() {
   if (window.electronAPI) {
     window.electronAPI.sendToProjector('projector-pause');
+  }
+}
+
+function stopVideo() {
+  if (window.electronAPI) {
+    window.electronAPI.sendToProjector('projector-stop');
   }
 }
 

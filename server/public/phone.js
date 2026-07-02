@@ -7,6 +7,7 @@ let queue = [];
 let nowPlaying = null;
 let currentCategory = 'All Songs';
 let selectedSongId = null;
+let isAdmin = sessionStorage.getItem('isAdmin') === 'true';
 
 // DOM Elements
 const tabBrowse = document.getElementById('tab-btn-browse');
@@ -37,11 +38,25 @@ const downloadUrlInput = document.getElementById('download-url-input');
 const downloadSubmitBtn = document.getElementById('download-submit-btn');
 const downloadStatus = document.getElementById('download-status');
 
+// Admin Controls Elements
+const adminToggleBtn = document.getElementById('admin-toggle-btn');
+const adminToggleText = document.getElementById('admin-toggle-text');
+const adminControls = document.getElementById('admin-controls');
+const modalAdminAuth = document.getElementById('modal-admin-auth');
+const modalAdminAuthClose = document.getElementById('modal-admin-auth-close');
+const adminAuthPasswordInput = document.getElementById('admin-auth-password-input');
+const modalAdminAuthSubmitBtn = document.getElementById('modal-admin-auth-submit-btn');
+const ctrlBtnPlay = document.getElementById('ctrl-btn-play');
+const ctrlBtnPause = document.getElementById('ctrl-btn-pause');
+const ctrlBtnStop = document.getElementById('ctrl-btn-stop');
+const ctrlBtnSkip = document.getElementById('ctrl-btn-skip');
+
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
   loadSongs();
   loadQueue();
+  updateAdminUI();
 });
 
 // Socket Events
@@ -90,6 +105,28 @@ function setupEventListeners() {
 
   // Submit download
   downloadSubmitBtn.addEventListener('click', handleDownloadSubmit);
+
+  // Admin Mode Toggle Button Click
+  adminToggleBtn.addEventListener('click', handleAdminToggleClick);
+
+  // Close Admin Auth Modal
+  modalAdminAuthClose.addEventListener('click', () => {
+    modalAdminAuth.classList.add('hidden');
+  });
+
+  // Submit Admin Verification
+  modalAdminAuthSubmitBtn.addEventListener('click', submitAdminPassword);
+  adminAuthPasswordInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      submitAdminPassword();
+    }
+  });
+
+  // Admin Playback Commands
+  ctrlBtnPlay.addEventListener('click', () => sendPlayStateChange('play'));
+  ctrlBtnPause.addEventListener('click', () => sendPlayStateChange('pause'));
+  ctrlBtnStop.addEventListener('click', () => sendPlayStateChange('stop'));
+  ctrlBtnSkip.addEventListener('click', () => sendPlayStateChange('skip'));
 }
 
 // --- Navigation Controller ---
@@ -334,4 +371,70 @@ async function submitQueueRequest() {
     modalSubmitBtn.disabled = false;
     modalSubmitBtn.textContent = 'Submit Request';
   }
+}
+
+// --- Admin Controllers ---
+function updateAdminUI() {
+  if (isAdmin) {
+    adminToggleBtn.className = 'px-2.5 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary text-[10px] font-bold hover:bg-primary/30 flex items-center gap-1 active:scale-95 transition-all';
+    adminToggleBtn.querySelector('.material-symbols-outlined').textContent = 'lock_open';
+    adminToggleText.textContent = 'Exit Admin';
+    adminControls.classList.remove('hidden');
+  } else {
+    adminToggleBtn.className = 'px-2.5 py-1 rounded-full bg-surface-container border border-white/5 text-on-surface-variant text-[10px] font-bold hover:bg-surface-container-high flex items-center gap-1 active:scale-95 transition-all';
+    adminToggleBtn.querySelector('.material-symbols-outlined').textContent = 'lock';
+    adminToggleText.textContent = 'Admin';
+    adminControls.classList.add('hidden');
+  }
+}
+
+function handleAdminToggleClick() {
+  if (isAdmin) {
+    isAdmin = false;
+    sessionStorage.removeItem('isAdmin');
+    updateAdminUI();
+  } else {
+    adminAuthPasswordInput.value = '';
+    modalAdminAuth.classList.remove('hidden');
+    adminAuthPasswordInput.focus();
+  }
+}
+
+async function submitAdminPassword() {
+  const password = adminAuthPasswordInput.value;
+  if (!password) {
+    alert('Please enter the password.');
+    return;
+  }
+
+  modalAdminAuthSubmitBtn.disabled = true;
+  modalAdminAuthSubmitBtn.textContent = 'Verifying...';
+
+  try {
+    const res = await fetch('/api/admin/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    const data = await res.json();
+    if (data.success) {
+      isAdmin = true;
+      sessionStorage.setItem('isAdmin', 'true');
+      modalAdminAuth.classList.add('hidden');
+      updateAdminUI();
+    } else {
+      alert(data.error || 'Verification failed.');
+    }
+  } catch (err) {
+    console.error('Error verifying admin password:', err);
+    alert('A connection error occurred.');
+  } finally {
+    modalAdminAuthSubmitBtn.disabled = false;
+    modalAdminAuthSubmitBtn.textContent = 'Verify Password';
+  }
+}
+
+function sendPlayStateChange(action) {
+  if (!isAdmin) return;
+  socket.emit('play_state_change', { action });
 }
