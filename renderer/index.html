@@ -255,6 +255,11 @@
     </div>
 
     <div class="flex items-center gap-6">
+      <button id="btn-toggle-projector"
+        class="p-2 text-on-surface-variant hover:text-primary transition-all rounded-full hover:bg-surface-variant/30 relative"
+        title="Toggle Projector Screen">
+        <span class="material-symbols-outlined text-[22px]">tv</span>
+      </button>
       <button id="btn-header-qr"
         class="p-2 text-on-surface-variant hover:text-primary transition-all rounded-full hover:bg-surface-variant/30 relative">
         <span class="material-symbols-outlined">qr_code_2</span>
@@ -422,6 +427,9 @@
             <button
               class="cat-btn px-5 py-1.5 rounded-full border border-outline-variant text-on-surface-variant font-medium text-xs hover:border-primary hover:text-primary transition-all"
               data-cat="Recently Added">Recently Added</button>
+            <button
+              class="cat-btn px-5 py-1.5 rounded-full border border-outline-variant text-on-surface-variant font-medium text-xs hover:border-primary hover:text-primary transition-all"
+              data-cat="YouTube">YouTube</button>
           </div>
         </div>
 
@@ -685,104 +693,7 @@
     </footer>
   </main>
 
-  <!-- Fullscreen Lyrics Playback Screen -->
-  <div id="fullscreen-player"
-    class="fixed inset-0 bg-black z-50 hidden flex flex-col justify-between py-12 px-12 transition-all">
-    <!-- Video element -->
-    <div class="absolute inset-0 z-0 bg-black flex items-center justify-center overflow-hidden">
-      <video id="video-element" class="w-full h-full object-contain" preload="auto">
-        Your browser does not support the video tag.
-      </video>
-    </div>
 
-    <!-- Top Overlay (Now Singing & Next in Queue) -->
-    <header class="w-full flex flex-col items-center gap-4 z-20 auto-hide-top">
-      <div class="flex items-center gap-4">
-        <!-- Now Singing Pill -->
-        <div class="glass-panel px-8 py-4 rounded-full flex items-center gap-6 shadow-2xl">
-          <div class="flex flex-col items-center border-r border-white/10 pr-6">
-            <span class="text-[10px] font-bold uppercase tracking-widest text-primary/80">Now Singing</span>
-            <span id="fs-singer-name" class="text-lg font-bold text-on-surface">--</span>
-          </div>
-          <div class="flex items-center gap-4">
-            <div
-              class="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center text-primary">
-              <span class="material-symbols-outlined text-2xl">music_note</span>
-            </div>
-            <div>
-              <h1 id="fs-song-title" class="text-md font-bold leading-none truncate max-w-[280px]">--</h1>
-              <p id="fs-song-artist" class="text-xs text-on-surface-variant mt-1 leading-none truncate max-w-[240px]">--
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <!-- QR Code Shortcut Button (Top Right of pill) -->
-        <button id="btn-fs-qr"
-          class="w-14 h-14 rounded-full glass-panel flex items-center justify-center text-on-surface hover:text-primary hover:border-primary/40 transition-all shadow-2xl hover:scale-105 active:scale-95">
-          <span class="material-symbols-outlined text-2xl">qr_code</span>
-        </button>
-      </div>
-
-      <!-- Next in Queue Preview (Moved to top to prevent overlaying lyrics) -->
-      <div class="w-full max-w-4xl glass-panel rounded-2xl p-4 flex flex-col gap-2.5 shadow-2xl">
-        <div class="flex justify-between items-center px-1">
-          <span class="text-xs font-bold text-primary uppercase tracking-widest">Next in Queue</span>
-          <div class="flex items-center gap-2 text-on-surface-variant">
-            <span class="material-symbols-outlined text-[16px]">group</span>
-            <span id="fs-queue-count" class="text-xs font-semibold">0 songs in waitlist</span>
-          </div>
-        </div>
-        <div class="grid grid-cols-4 gap-4" id="fs-queue-grid">
-          <!-- Dynamically populated next 4 songs -->
-          <div
-            class="bg-white/5 p-3 rounded-xl flex items-center justify-center border border-white/5 text-xs text-on-surface-variant font-medium col-span-4 h-14">
-            No upcoming songs in the queue
-          </div>
-        </div>
-      </div>
-    </header>
-
-    <!-- Center Video Screen Mock overlay (No lyrics overlay required since video holds them, but we display a notification if idle) -->
-    <section
-      class="flex-grow flex flex-col items-center justify-center w-full z-10 text-center select-none pointer-events-none">
-      <div id="fs-idle-prompt"
-        class="text-white/10 text-6xl uppercase tracking-[1.5em] font-extrabold hidden select-none">
-        VIDEO
-      </div>
-    </section>
-
-    <!-- Bottom Overlay (Playback Slider) -->
-    <footer class="w-full flex flex-col items-center gap-6 z-20 auto-hide">
-      <!-- Playback Progress Slider bar -->
-      <div
-        class="flex items-center gap-6 bg-surface-container-highest/65 backdrop-blur-md px-8 py-3 rounded-full border border-white/10 shadow-xl w-full max-w-2xl justify-between">
-        <div class="flex items-center gap-4 flex-grow">
-          <span id="fs-time-cur" class="text-xs text-on-surface-variant">00:00</span>
-          <div class="h-1 bg-white/10 rounded-full overflow-hidden flex-grow relative cursor-pointer"
-            id="fs-progress-container">
-            <div id="fs-progress-bar" class="h-full bg-primary w-0 shadow-[0_0_10px_rgba(83,224,118,0.6)]"></div>
-          </div>
-          <span id="fs-time-total" class="text-xs text-on-surface-variant">00:00</span>
-        </div>
-        <div class="flex items-center gap-4 border-l border-white/10 pl-4">
-          <button id="btn-fs-restart" class="p-2 text-on-surface hover:text-primary transition-all active:scale-90">
-            <span class="material-symbols-outlined text-2xl">replay</span>
-          </button>
-          <button id="btn-fs-toggle"
-            class="w-10 h-10 flex items-center justify-center rounded-full bg-primary text-on-primary hover:scale-105 active:scale-95 transition-transform shadow-md">
-            <span class="material-symbols-outlined text-2xl" id="fs-play-btn-icon">pause</span>
-          </button>
-          <button id="btn-fs-skip" class="p-2 text-on-surface hover:text-primary transition-all active:scale-90">
-            <span class="material-symbols-outlined text-2xl">skip_next</span>
-          </button>
-          <button id="btn-fs-exit" class="p-2 text-on-surface hover:text-status-error transition-all active:scale-90">
-            <span class="material-symbols-outlined text-2xl">fullscreen_exit</span>
-          </button>
-        </div>
-      </div>
-    </footer>
-  </div>
 
   <!-- Connect Phone Overlay Modal -->
   <div id="modal-qr" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden">

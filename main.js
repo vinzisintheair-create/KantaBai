@@ -5,6 +5,7 @@ const server = require('./server/server');
 const settingsManager = require('./settings');
 
 let mainWindow = null;
+let projectorWindow = null;
 
 // Read settings to configure hardware acceleration before app ready
 const settings = settingsManager.load();
@@ -40,6 +41,44 @@ async function createWindow() {
   });
 }
 
+async function createProjectorWindow() {
+  if (projectorWindow && !projectorWindow.isDestroyed()) {
+    projectorWindow.focus();
+    return;
+  }
+
+  projectorWindow = new BrowserWindow({
+    width: 1024,
+    height: 576,
+    minWidth: 800,
+    minHeight: 450,
+    title: 'KantaBai Projector Screen',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    },
+    backgroundColor: '#000000',
+    show: false
+  });
+
+  projectorWindow.loadFile(path.join(__dirname, 'renderer', 'projector.html'));
+
+  projectorWindow.once('ready-to-show', () => {
+    projectorWindow.show();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('projector-status-change', true);
+    }
+  });
+
+  projectorWindow.on('closed', () => {
+    projectorWindow = null;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('projector-status-change', false);
+    }
+  });
+}
+
 // --- IPC Handlers ---
 
 ipcMain.handle('dialog:openDirectory', async () => {
@@ -63,6 +102,42 @@ ipcMain.handle('settings:getPort', () => {
 ipcMain.on('window:setFullscreen', (event, flag) => {
   if (mainWindow) {
     mainWindow.setFullScreen(flag);
+  }
+});
+
+// --- Projector Window Lifecycle and Routing IPCs ---
+
+ipcMain.on('projector:open', () => {
+  createProjectorWindow();
+});
+
+ipcMain.on('projector:close', () => {
+  if (projectorWindow && !projectorWindow.isDestroyed()) {
+    projectorWindow.close();
+  }
+});
+
+ipcMain.handle('projector:status', () => {
+  return !!(projectorWindow && !projectorWindow.isDestroyed());
+});
+
+ipcMain.on('projector:setFullscreen', (event, flag) => {
+  if (projectorWindow && !projectorWindow.isDestroyed()) {
+    projectorWindow.setFullScreen(flag);
+  }
+});
+
+// Generic forwarding channel from control to projector
+ipcMain.on('to:projector', (event, channel, data) => {
+  if (projectorWindow && !projectorWindow.isDestroyed()) {
+    projectorWindow.webContents.send(channel, data);
+  }
+});
+
+// Generic forwarding channel from projector to control
+ipcMain.on('to:control', (event, channel, data) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(channel, data);
   }
 });
 

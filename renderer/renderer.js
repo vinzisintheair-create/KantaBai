@@ -63,20 +63,8 @@ const footerVolumeSlider = document.getElementById('footer-volume-slider');
 const footerPlayBtnIcon = document.getElementById('footer-play-btn-icon');
 const footerPlaybackIcon = document.getElementById('footer-playback-icon');
 
-// Fullscreen Player elements
-const fsPlayer = document.getElementById('fullscreen-player');
-const videoElement = document.getElementById('video-element');
-const fsSongTitle = document.getElementById('fs-song-title');
-const fsSongArtist = document.getElementById('fs-song-artist');
-const fsSingerName = document.getElementById('fs-singer-name');
-const fsQueueGrid = document.getElementById('fs-queue-grid');
-const fsQueueCount = document.getElementById('fs-queue-count');
-const fsTimeCur = document.getElementById('fs-time-cur');
-const fsTimeTotal = document.getElementById('fs-time-total');
-const fsProgressBar = document.getElementById('fs-progress-bar');
-const fsProgressContainer = document.getElementById('fs-progress-container');
-const fsPlayBtnIcon = document.getElementById('fs-play-btn-icon');
-const fsIdlePrompt = document.getElementById('fs-idle-prompt');
+// Playback State Tracking
+let isPlaybackActive = false;
 
 // Modals
 const modalQr = document.getElementById('modal-qr');
@@ -165,6 +153,10 @@ function setupSocketHandlers() {
     updateSettingsUI(data.settings);
   });
 
+  socket.on('songbook_updated', () => {
+    loadAllSongs();
+  });
+
   // Triggered by companion phone or keyboard commands
   socket.on('play_state_command', (data) => {
     if (data.action === 'play') {
@@ -177,6 +169,78 @@ function setupSocketHandlers() {
       restartSong();
     }
   });
+
+  // --- IPC Listeners from Projector Window ---
+  if (window.electronAPI) {
+    window.electronAPI.onControlMessage('projector-status-change', (isOpen) => {
+      const btn = document.getElementById('btn-toggle-projector');
+      if (!btn) return;
+      if (isOpen) {
+        btn.classList.add('text-primary');
+        btn.classList.remove('text-on-surface-variant');
+        btn.title = 'Close Projector Screen';
+        // Sync state to newly opened projector
+        syncPlaybackToProjector();
+      } else {
+        btn.classList.remove('text-primary');
+        btn.classList.add('text-on-surface-variant');
+        btn.title = 'Open Projector Screen';
+      }
+    });
+
+    window.electronAPI.onControlMessage('projector-ready', () => {
+      syncPlaybackToProjector();
+    });
+
+    window.electronAPI.onControlMessage('projector-timeupdate', (data) => {
+      updatePlaybackProgress(data.currentTime, data.duration);
+    });
+
+    window.electronAPI.onControlMessage('projector-play-state', (state) => {
+      isPlaybackActive = (state === 'play');
+      if (isPlaybackActive) {
+        footerPlayBtnIcon.textContent = 'pause';
+        footerPlaybackIcon.classList.add('animate-spin');
+      } else {
+        footerPlayBtnIcon.textContent = 'play_arrow';
+        footerPlaybackIcon.classList.remove('animate-spin');
+      }
+    });
+
+    window.electronAPI.onControlMessage('projector-ended', () => {
+      handleVideoEnded();
+    });
+  }
+}
+
+function syncPlaybackToProjector() {
+  if (!window.electronAPI) return;
+  
+  if (nowPlaying) {
+    const videoUrl = `${apiBaseUrl}/media/${encodePath(nowPlaying.file_path)}`;
+    window.electronAPI.sendToProjector('projector-load', {
+      src: videoUrl,
+      title: nowPlaying.title,
+      artist: nowPlaying.artist,
+      singer: nowPlaying.singer_name
+    });
+    
+    window.electronAPI.sendToProjector(isPlaybackActive ? 'projector-play' : 'projector-pause');
+  } else {
+    window.electronAPI.sendToProjector('projector-load', {
+      src: null,
+      title: '--',
+      artist: '--',
+      singer: '--'
+    });
+  }
+
+  // Sync volume
+  const vol = parseInt(footerVolumeSlider.value) || 85;
+  window.electronAPI.sendToProjector('projector-volume', vol);
+
+  // Sync queue
+  window.electronAPI.sendToProjector('projector-queue', { queue: queueList });
 }
 
 // --- Event Listeners Setup ---
@@ -325,38 +389,17 @@ function setupEventListeners() {
   document.getElementById('btn-fullscreen-toggle').addEventListener('click', toggleFullscreen);
   document.getElementById('btn-home-video-shortcut').addEventListener('click', toggleFullscreen);
 
-  // Playback Control Buttons (Fullscreen)
-  document.getElementById('btn-fs-toggle').addEventListener('click', togglePlayPause);
-  document.getElementById('btn-fs-restart').addEventListener('click', restartSong);
-  document.getElementById('btn-fs-skip').addEventListener('click', skipSong);
-  document.getElementById('btn-fs-exit').addEventListener('click', toggleFullscreen);
-  document.getElementById('btn-fs-qr').addEventListener('click', () => {
-    modalQr.classList.remove('hidden');
-  });
-
-  // Fullscreen player progress seeker click
-  fsProgressContainer.addEventListener('click', (e) => {
-    const rect = fsProgressContainer.getBoundingClientRect();
-    const pos = (e.clientX - rect.left) / rect.width;
-    videoElement.currentTime = pos * videoElement.duration;
-  });
-
-  // Idle detection for hiding controls in Fullscreen Player
-  fsPlayer.addEventListener('mousemove', resetIdleTimer);
-  fsPlayer.addEventListener('click', resetIdleTimer);
-
-  // Video playback end event
-  videoElement.addEventListener('ended', handleVideoEnded);
-  videoElement.addEventListener('timeupdate', updatePlaybackProgress);
-  videoElement.addEventListener('play', () => {
-    footerPlayBtnIcon.textContent = 'pause';
-    fsPlayBtnIcon.textContent = 'pause';
-    footerPlaybackIcon.classList.add('animate-spin');
-  });
-  videoElement.addEventListener('pause', () => {
-    footerPlayBtnIcon.textContent = 'play_arrow';
-    fsPlayBtnIcon.textContent = 'play_arrow';
-    footerPlaybackIcon.classList.remove('animate-spin');
+  // Projector Control Button
+  document.getElementById('btn-toggle-projector').addEventListener('click', () => {
+    if (window.electronAPI) {
+      window.electronAPI.getProjectorStatus().then(isOpen => {
+        if (isOpen) {
+          window.electronAPI.closeProjector();
+        } else {
+          window.electronAPI.openProjector();
+        }
+      });
+    }
   });
 }
 
@@ -584,19 +627,19 @@ function updateQueueUI(queue, current) {
     footerSongTitle.textContent = nowPlaying.title;
     footerSingerName.textContent = nowPlaying.singer_name;
     
-    // Set video src if changed
+    // Send video loading message to projector
     const videoUrl = `${apiBaseUrl}/media/${encodePath(nowPlaying.file_path)}`;
     if (currentVideoPath !== nowPlaying.file_path) {
       currentVideoPath = nowPlaying.file_path;
-      videoElement.src = videoUrl;
-      videoElement.load();
-      videoElement.play().catch(console.error);
+      if (window.electronAPI) {
+        window.electronAPI.sendToProjector('projector-load', {
+          src: videoUrl,
+          title: nowPlaying.title,
+          artist: nowPlaying.artist,
+          singer: nowPlaying.singer_name
+        });
+      }
     }
-
-    fsSongTitle.textContent = nowPlaying.title;
-    fsSongArtist.textContent = nowPlaying.artist;
-    fsSingerName.textContent = nowPlaying.singer_name;
-    fsIdlePrompt.classList.add('hidden');
   } else {
     npTitle.textContent = 'No Song Playing';
     npArtist.textContent = 'Select a song from the library';
@@ -606,37 +649,19 @@ function updateQueueUI(queue, current) {
     footerSingerName.textContent = '--';
     
     currentVideoPath = '';
-    videoElement.src = '';
-    fsSongTitle.textContent = '--';
-    fsSongArtist.textContent = '--';
-    fsSingerName.textContent = '--';
-    fsIdlePrompt.classList.remove('hidden');
+    if (window.electronAPI) {
+      window.electronAPI.sendToProjector('projector-load', {
+        src: null,
+        title: '--',
+        artist: '--',
+        singer: '--'
+      });
+    }
   }
 
-  // Render Fullscreen next 4 queue preview
-  fsQueueCount.textContent = `${waitlistCount} songs in waitlist`;
-  fsQueueGrid.innerHTML = '';
-  if (pendingSongs.length === 0) {
-    fsQueueGrid.innerHTML = `
-      <div class="bg-white/5 p-3 rounded-xl flex items-center justify-center border border-white/5 text-xs text-on-surface-variant font-medium col-span-4 h-16">
-        No upcoming songs in the queue
-      </div>
-    `;
-  } else {
-    pendingSongs.slice(0, 4).forEach((item, index) => {
-      const card = document.createElement('div');
-      card.className = 'bg-white/5 hover:bg-white/10 transition-colors p-3 rounded-xl flex items-center gap-3 border border-white/5 min-w-0';
-      card.innerHTML = `
-        <div class="flex-shrink-0 w-8 h-8 rounded-full ${index === 0 ? 'bg-primary/20 text-primary' : 'bg-white/10 text-on-surface-variant'} flex items-center justify-center font-bold text-xs">
-          ${index + 1}
-        </div>
-        <div class="min-w-0 flex-grow">
-          <p class="font-bold text-xs text-white truncate leading-tight">${item.title}</p>
-          <p class="text-[10px] text-on-surface-variant truncate mt-0.5">${item.artist} &bull; <span class="text-primary font-medium">${item.singer_name}</span></p>
-        </div>
-      `;
-      fsQueueGrid.appendChild(card);
-    });
+  // Forward waitlist queue to projector window
+  if (window.electronAPI) {
+    window.electronAPI.sendToProjector('projector-queue', { queue: queue });
   }
 }
 
@@ -774,25 +799,26 @@ async function rescanLibrary() {
 
 // --- Player Engine Controllers ---
 function updateVolume(val) {
-  const fraction = val / 100;
-  videoElement.volume = fraction;
+  if (window.electronAPI) {
+    window.electronAPI.sendToProjector('projector-volume', val);
+  }
 }
 
 function playVideo() {
-  if (videoElement.src && videoElement.src !== window.location.href) {
-    videoElement.play().catch(console.error);
+  if (window.electronAPI) {
+    window.electronAPI.sendToProjector('projector-play');
   }
 }
 
 function pauseVideo() {
-  videoElement.pause();
+  if (window.electronAPI) {
+    window.electronAPI.sendToProjector('projector-pause');
+  }
 }
 
 function togglePlayPause() {
-  if (videoElement.paused) {
-    playVideo();
-  } else {
-    pauseVideo();
+  if (window.electronAPI) {
+    window.electronAPI.sendToProjector(isPlaybackActive ? 'projector-pause' : 'projector-play');
   }
 }
 
@@ -824,8 +850,15 @@ async function skipSong() {
 }
 
 function restartSong() {
-  videoElement.currentTime = 0;
-  playVideo();
+  if (window.electronAPI && nowPlaying) {
+    const videoUrl = `${apiBaseUrl}/media/${encodePath(nowPlaying.file_path)}`;
+    window.electronAPI.sendToProjector('projector-load', {
+      src: videoUrl,
+      title: nowPlaying.title,
+      artist: nowPlaying.artist,
+      singer: nowPlaying.singer_name
+    });
+  }
 }
 
 function handleVideoEnded() {
@@ -833,50 +866,32 @@ function handleVideoEnded() {
   skipSong();
 }
 
-function updatePlaybackProgress() {
-  if (!videoElement.duration) return;
-  const progress = (videoElement.currentTime / videoElement.duration) * 100;
+function updatePlaybackProgress(currentTime, duration) {
+  if (!duration) return;
+  const progress = (currentTime / duration) * 100;
   npProgress.style.width = `${progress}%`;
-  fsProgressBar.style.width = `${progress}%`;
 
   // Update timestamps
-  const curMin = Math.floor(videoElement.currentTime / 60).toString().padStart(2, '0');
-  const curSec = Math.floor(videoElement.currentTime % 60).toString().padStart(2, '0');
-  const totMin = Math.floor(videoElement.duration / 60).toString().padStart(2, '0');
-  const totSec = Math.floor(videoElement.duration % 60).toString().padStart(2, '0');
+  const curMin = Math.floor(currentTime / 60).toString().padStart(2, '0');
+  const curSec = Math.floor(currentTime % 60).toString().padStart(2, '0');
+  const totMin = Math.floor(duration / 60).toString().padStart(2, '0');
+  const totSec = Math.floor(duration % 60).toString().padStart(2, '0');
 
   npTimeCur.textContent = `${curMin}:${curSec}`;
   npTimeTotal.textContent = `${totMin}:${totSec}`;
-  fsTimeCur.textContent = `${curMin}:${curSec}`;
-  fsTimeTotal.textContent = `${totMin}:${totSec}`;
 }
 
-// Fullscreen window toggles
+// Fullscreen window toggles - now acts to toggle native fullscreen on projector
 function toggleFullscreen() {
-  if (fsPlayer.classList.contains('hidden')) {
-    fsPlayer.classList.remove('hidden');
-    if (systemSettings && systemSettings.fullscreen) {
-      // Toggle native window fullscreen
-      window.electronAPI?.setFullscreen(true);
-    }
-    playVideo();
-  } else {
-    fsPlayer.classList.add('hidden');
-    if (systemSettings && systemSettings.fullscreen) {
-      window.electronAPI?.setFullscreen(false);
-    }
+  if (window.electronAPI) {
+    window.electronAPI.getProjectorStatus().then(isOpen => {
+      if (isOpen) {
+        window.electronAPI.sendToProjector('projector-toggle-fullscreen');
+      } else {
+        window.electronAPI.openProjector();
+      }
+    });
   }
-}
-
-// Controls visibility idle timeout (Fullscreen mode)
-function resetIdleTimer() {
-  fsPlayer.classList.remove('idle');
-  clearTimeout(idleTimeout);
-  idleTimeout = setTimeout(() => {
-    if (!videoElement.paused) {
-      fsPlayer.classList.add('idle');
-    }
-  }, 3000);
 }
 
 // --- Admin Authentication Controllers ---

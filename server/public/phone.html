@@ -118,13 +118,17 @@
       <button
         class="cat-btn px-4 py-1.5 rounded-full bg-surface-container border border-white/5 text-on-surface-variant font-semibold text-xs flex-shrink-0 transition-transform active:scale-95"
         data-cat="Ballads">Ballads</button>
+      <button
+        class="cat-btn px-4 py-1.5 rounded-full bg-surface-container border border-white/5 text-on-surface-variant font-semibold text-xs flex-shrink-0 transition-transform active:scale-95"
+        data-cat="YouTube">YouTube</button>
     </div>
   </section>
 
-  <!-- Navigation Tabs (Browse / Queue) -->
+  <!-- Navigation Tabs (Browse / Queue / Download) -->
   <section class="px-4 pb-2 border-b border-white/5 flex gap-6 text-sm">
     <button id="tab-btn-browse" class="pb-2 text-primary font-bold border-b-2 border-primary">Browse Songbook</button>
     <button id="tab-btn-queue" class="pb-2 text-on-surface-variant font-semibold">Current Queue</button>
+    <button id="tab-btn-download" class="pb-2 text-on-surface-variant font-semibold">Download Song</button>
   </section>
 
   <!-- Views Content Container -->
@@ -143,9 +147,30 @@
         <!-- Dynamically populated -->
       </div>
     </div>
-  </main>
 
-  <!-- Add Queue Modal popup -->
+    <!-- View: Download -->
+    <div id="view-download" class="hidden space-y-4">
+      <div class="glass-panel p-5 rounded-2xl border border-white/5 space-y-4">
+        <div>
+          <h3 class="text-sm font-bold text-white">Download from YouTube</h3>
+          <p class="text-[10px] text-on-surface-variant mt-1">Enter a YouTube URL to download and index the track automatically.</p>
+        </div>
+        <div class="space-y-4">
+          <div class="flex flex-col gap-1">
+            <label class="text-[10px] font-bold text-on-surface-variant">YouTube Video URL</label>
+            <input id="download-url-input" type="text" placeholder="https://www.youtube.com/watch?v=..."
+              class="w-full bg-surface-container-highest border border-white/5 rounded-xl px-4 py-3 text-xs focus:ring-1 focus:ring-primary outline-none text-white placeholder:text-on-surface-variant/40">
+          </div>
+          <button id="download-submit-btn"
+            class="w-full bg-primary text-on-primary py-3 rounded-xl text-xs font-bold hover:opacity-90 active:scale-95 transition-transform flex items-center justify-center gap-1.5">
+            <span class="material-symbols-outlined text-sm font-bold">download</span>
+            <span>Start Download</span>
+          </button>
+          <div id="download-status" class="hidden text-xs p-3 rounded-xl border font-medium"></div>
+        </div>
+      </div>
+    </div>
+  </main>
   <div id="modal-add" class="fixed inset-0 bg-black/85 z-50 flex items-center justify-center hidden px-4">
     <div class="glass-panel p-6 rounded-2xl w-full max-w-sm shadow-2xl relative">
       <button id="modal-close" class="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface">

@@ -11,8 +11,10 @@ let selectedSongId = null;
 // DOM Elements
 const tabBrowse = document.getElementById('tab-btn-browse');
 const tabQueue = document.getElementById('tab-btn-queue');
+const tabDownload = document.getElementById('tab-btn-download');
 const viewBrowse = document.getElementById('view-browse');
 const viewQueue = document.getElementById('view-queue');
+const viewDownload = document.getElementById('view-download');
 const searchInput = document.getElementById('search-input');
 const categoriesBar = document.getElementById('categories-bar');
 const songsList = document.getElementById('songs-list');
@@ -29,6 +31,11 @@ const modalClose = document.getElementById('modal-close');
 const modalSongDetails = document.getElementById('modal-song-details');
 const singerNameInput = document.getElementById('singer-name-input');
 const modalSubmitBtn = document.getElementById('modal-submit-btn');
+
+// Download Elements
+const downloadUrlInput = document.getElementById('download-url-input');
+const downloadSubmitBtn = document.getElementById('download-submit-btn');
+const downloadStatus = document.getElementById('download-status');
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -51,6 +58,7 @@ function setupEventListeners() {
   // Tabs
   tabBrowse.addEventListener('click', () => switchTab('browse'));
   tabQueue.addEventListener('click', () => switchTab('queue'));
+  tabDownload.addEventListener('click', () => switchTab('download'));
 
   // Search input
   searchInput.addEventListener('input', () => {
@@ -79,23 +87,101 @@ function setupEventListeners() {
 
   // Submit request
   modalSubmitBtn.addEventListener('click', submitQueueRequest);
+
+  // Submit download
+  downloadSubmitBtn.addEventListener('click', handleDownloadSubmit);
 }
 
 // --- Navigation Controller ---
 function switchTab(tab) {
   activeTab = tab;
+
+  // Reset tab button styles
+  tabBrowse.className = 'pb-2 text-on-surface-variant font-semibold';
+  tabQueue.className = 'pb-2 text-on-surface-variant font-semibold';
+  tabDownload.className = 'pb-2 text-on-surface-variant font-semibold';
+
+  // Hide all view panes
+  viewBrowse.classList.add('hidden');
+  viewQueue.classList.add('hidden');
+  viewDownload.classList.add('hidden');
+
   if (tab === 'browse') {
     tabBrowse.className = 'pb-2 text-primary font-bold border-b-2 border-primary';
-    tabQueue.className = 'pb-2 text-on-surface-variant font-semibold';
     viewBrowse.classList.remove('hidden');
-    viewQueue.classList.add('hidden');
     loadSongs();
-  } else {
+  } else if (tab === 'queue') {
     tabQueue.className = 'pb-2 text-primary font-bold border-b-2 border-primary';
-    tabBrowse.className = 'pb-2 text-on-surface-variant font-semibold';
     viewQueue.classList.remove('hidden');
-    viewBrowse.classList.add('hidden');
     loadQueue();
+  } else if (tab === 'download') {
+    tabDownload.className = 'pb-2 text-primary font-bold border-b-2 border-primary';
+    viewDownload.classList.remove('hidden');
+    // Clear download state
+    downloadStatus.classList.add('hidden');
+    downloadUrlInput.value = '';
+  }
+}
+
+// --- YouTube Download Controllers ---
+async function handleDownloadSubmit() {
+  const url = downloadUrlInput.value.trim();
+  if (!url) {
+    showDownloadStatus('Please enter a YouTube video URL.', 'error');
+    return;
+  }
+
+  if (!url.includes('youtube.com/') && !url.includes('youtu.be/')) {
+    showDownloadStatus('Please enter a valid YouTube URL (youtube.com or youtu.be).', 'error');
+    return;
+  }
+
+  downloadSubmitBtn.disabled = true;
+  downloadSubmitBtn.innerHTML = `
+    <span class="material-symbols-outlined text-sm animate-spin">sync</span>
+    <span>Downloading (takes up to 1 min)...</span>
+  `;
+  showDownloadStatus('Connecting to YouTube and extracting metadata...', 'info');
+
+  try {
+    const res = await fetch('/api/download', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ url })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      const songInfo = data.song;
+      showDownloadStatus(`Success! Added "${songInfo.title}" by "${songInfo.artist}" to the songbook.`, 'success');
+      downloadUrlInput.value = '';
+    } else {
+      showDownloadStatus(`Error: ${data.error || 'Failed to download video.'}`, 'error');
+    }
+  } catch (err) {
+    console.error('Download error:', err);
+    showDownloadStatus('A network error occurred. Please verify your connection to the server.', 'error');
+  } finally {
+    downloadSubmitBtn.disabled = false;
+    downloadSubmitBtn.innerHTML = `
+      <span class="material-symbols-outlined text-sm font-bold">download</span>
+      <span>Start Download</span>
+    `;
+  }
+}
+
+function showDownloadStatus(message, type) {
+  downloadStatus.classList.remove('hidden');
+  downloadStatus.textContent = message;
+
+  if (type === 'error') {
+    downloadStatus.className = 'text-xs p-3 rounded-xl border border-red-500/20 bg-red-500/10 text-red-400 font-medium';
+  } else if (type === 'success') {
+    downloadStatus.className = 'text-xs p-3 rounded-xl border border-primary/20 bg-primary/10 text-primary font-medium';
+  } else {
+    downloadStatus.className = 'text-xs p-3 rounded-xl border border-blue-500/20 bg-blue-500/10 text-blue-400 font-medium';
   }
 }
 

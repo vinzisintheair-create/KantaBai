@@ -15,7 +15,8 @@
     "qrcode": "^1.5.3",
     "socket.io": "^4.7.5",
     "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "youtube-dl-exec": "^3.1.8"
   },
   "devDependencies": {
     "electron": "^30.0.1",

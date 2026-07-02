@@ -7,6 +7,8 @@ const QRCode = require('qrcode');
 const db = require('../database/db');
 const scanner = require('../database/scanner');
 const settingsManager = require('../settings');
+const youtubedl = require('youtube-dl-exec');
+const fs = require('fs');
 
 let app = null;
 let server = null;
@@ -200,6 +202,131 @@ function createServer() {
       const result = await scanner.scanLibrary(currentSettings.libraryPath);
       res.json({ success: true, result });
     } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Helper to parse YouTube titles into Artist and Song Title
+  function parseYoutubeTitle(originalTitle) {
+    let clean = originalTitle
+      .replace(/\s*[([].*?(karaoke|lyrics|instrumental|version|official|cover|tribute|with).*?[\])]/gi, '')
+      .replace(/\s*\|\s*karaoke/gi, '')
+      .replace(/\s*\|\s*instrumental/gi, '')
+      .replace(/\s*-\s*karaoke/gi, '')
+      .replace(/karaoke\s*-\s*/gi, '')
+      .replace(/instrumental\s*-\s*/gi, '')
+      .trim();
+
+    let artist = 'YouTube';
+    let title = clean;
+
+    if (clean.includes('-')) {
+      const parts = clean.split('-');
+      if (parts.length >= 2) {
+        artist = parts[0].trim();
+        title = parts.slice(1).join('-').trim();
+      }
+    }
+
+    if (!title) title = originalTitle || 'Unknown Title';
+    if (!artist) artist = 'YouTube';
+
+    return { artist, title };
+  }
+
+  // Download YouTube video endpoint
+  app.post('/api/download', async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url) {
+        return res.status(400).json({ success: false, error: 'YouTube URL is required.' });
+      }
+
+      const currentSettings = settingsManager.load();
+      if (!currentSettings.libraryPath) {
+        return res.status(400).json({ success: false, error: 'Library path is not configured. Configure it in desktop settings.' });
+      }
+
+      if (!fs.existsSync(currentSettings.libraryPath)) {
+        fs.mkdirSync(currentSettings.libraryPath, { recursive: true });
+      }
+
+      console.log(`[YouTube Download] Fetching metadata for url: ${url}`);
+      let info;
+      try {
+        info = await youtubedl(url, {
+          dumpSingleJson: true,
+          noCheckCertificates: true,
+          noWarnings: true,
+          preferFreeFormats: true
+        });
+      } catch (metaErr) {
+        console.error('[YouTube Download] Metadata fetch failed:', metaErr);
+        return res.status(400).json({ success: false, error: 'Failed to retrieve YouTube video details. Ensure the URL is valid.' });
+      }
+
+      if (!info || !info.title) {
+        return res.status(400).json({ success: false, error: 'Could not resolve title metadata from URL.' });
+      }
+
+      const parsed = parseYoutubeTitle(info.title);
+      // Sanitize the filename to be safe for OS filesystem
+      const sanitizedArtist = parsed.artist.replace(/[\\/:*?"<>|]/g, '_');
+      const sanitizedTitle = parsed.title.replace(/[\\/:*?"<>|]/g, '_');
+      const filename = `${sanitizedArtist} - ${sanitizedTitle}.mp4`;
+      const destPath = path.join(currentSettings.libraryPath, filename);
+      const relativePath = filename;
+
+      const category = 'YouTube';
+
+      if (fs.existsSync(destPath)) {
+        console.log(`[YouTube Download] File already exists: ${destPath}. Skipping download.`);
+        await db.addSong({
+          title: parsed.title,
+          artist: parsed.artist,
+          file_path: relativePath,
+          category: category
+        });
+        io.emit('songbook_updated');
+        return res.json({
+          success: true,
+          alreadyExists: true,
+          song: {
+            title: parsed.title,
+            artist: parsed.artist,
+            category: category
+          }
+        });
+      }
+
+      console.log(`[YouTube Download] Starting download for: ${url} -> ${destPath}`);
+      await youtubedl(url, {
+        output: destPath,
+        format: 'best[ext=mp4]/best',
+        noCheckCertificates: true,
+        noWarnings: true
+      });
+
+      console.log(`[YouTube Download] Download completed successfully: ${destPath}`);
+      await db.addSong({
+        title: parsed.title,
+        artist: parsed.artist,
+        file_path: relativePath,
+        category: category
+      });
+
+      io.emit('songbook_updated');
+
+      res.json({
+        success: true,
+        song: {
+          title: parsed.title,
+          artist: parsed.artist,
+          category: category
+        }
+      });
+    } catch (err) {
+      console.error('[YouTube Download] Handler error:', err);
       res.status(500).json({ success: false, error: err.message });
     }
   });
