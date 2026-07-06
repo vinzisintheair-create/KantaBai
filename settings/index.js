@@ -14,7 +14,7 @@ try {
 }
 
 const DEFAULT_SETTINGS = {
-  libraryPath: 'D:\\SongBook',
+  libraryPath: 'E:\\SongBook',
   serverPort: 8080,
   theme: 'Midnight (Dark)',
   ambientVisualizer: 'Neon Pulse (Default)',
