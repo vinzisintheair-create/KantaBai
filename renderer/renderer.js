@@ -575,16 +575,65 @@ function setupEventListeners() {
     btnDesktopRemoteClear.addEventListener('click', clearDesktopRemoteInput);
   }
 
-  const btnDesktopRemoteEnter = document.getElementById('btn-desktop-remote-enter');
-  if (btnDesktopRemoteEnter) {
-    btnDesktopRemoteEnter.addEventListener('click', submitDesktopRemoteInput);
+  // Header Remote Shortcut Button
+  const btnHeaderRemote = document.getElementById('btn-header-remote');
+  if (btnHeaderRemote) {
+    btnHeaderRemote.addEventListener('click', () => switchTab('remote'));
   }
 
-  document.querySelectorAll('.dt-key').forEach(btn => {
+  // Home Screen Remote Shortcut Card
+  const btnHomeRemote = document.getElementById('btn-home-remote-shortcut');
+  if (btnHomeRemote) {
+    btnHomeRemote.addEventListener('click', () => switchTab('remote'));
+  }
+
+  // Pane Remote Keypad Listeners
+  const btnPaneRemoteClear = document.getElementById('btn-pane-remote-clear');
+  if (btnPaneRemoteClear) {
+    btnPaneRemoteClear.addEventListener('click', clearDesktopRemoteInput);
+  }
+
+  const btnPaneRemoteEnter = document.getElementById('btn-pane-remote-enter');
+  if (btnPaneRemoteEnter) {
+    btnPaneRemoteEnter.addEventListener('click', submitDesktopRemoteInput);
+  }
+
+  document.querySelectorAll('.pn-key').forEach(btn => {
     btn.addEventListener('click', () => {
       pressDesktopRemoteDigit(btn.getAttribute('data-val'));
     });
   });
+
+  const remoteDirSearch = document.getElementById('remote-dir-search');
+  if (remoteDirSearch) {
+    remoteDirSearch.addEventListener('input', (e) => {
+      renderRemoteDirectory(e.target.value.trim());
+    });
+  }
+
+  // Sync Singer Inputs
+  const paneSingerInput = document.getElementById('pane-remote-singer-input');
+  const modalSingerInput = document.getElementById('desktop-remote-singer-input');
+  if (paneSingerInput && modalSingerInput) {
+    paneSingerInput.addEventListener('input', (e) => {
+      modalSingerInput.value = e.target.value;
+    });
+    modalSingerInput.addEventListener('input', (e) => {
+      paneSingerInput.value = e.target.value;
+    });
+  }
+
+  // Sync Voice Toggles
+  const paneVoiceToggle = document.getElementById('pane-remote-voice-toggle');
+  const modalVoiceToggle = document.getElementById('desktop-voice-toggle');
+  if (paneVoiceToggle && modalVoiceToggle) {
+    paneVoiceToggle.addEventListener('change', (e) => {
+      modalVoiceToggle.checked = e.target.checked;
+    });
+    modalVoiceToggle.addEventListener('change', (e) => {
+      paneVoiceToggle.checked = e.target.checked;
+    });
+  }
 }
 
 // --- UI Navigation Controllers ---
@@ -592,7 +641,7 @@ function switchTab(tabName) {
   currentTab = tabName;
   
   // Update sidebar active classes
-  navItems.forEach(item => {
+  document.querySelectorAll('.nav-item').forEach(item => {
     if (item.getAttribute('data-tab') === tabName) {
       item.className = 'nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-primary font-bold bg-primary/10 transition-all';
     } else {
@@ -615,6 +664,10 @@ function switchTab(tabName) {
     loadQueue();
   } else if (tabName === 'home') {
     loadRecentHistory();
+    renderHomeSongbookSpotlight();
+  } else if (tabName === 'remote') {
+    renderRemoteDirectory();
+    updateDesktopRemoteDisplay();
   }
 }
 
@@ -630,6 +683,8 @@ async function loadAllSongs(query = '', category = '') {
     if (data.success) {
       songsList = data.songs;
       renderSongbook();
+      renderHomeSongbookSpotlight();
+      renderRemoteDirectory();
     }
   } catch (err) {
     console.error('Error loading songs:', err);
@@ -710,14 +765,113 @@ function renderSongbook() {
         <h4 class="font-bold text-on-surface truncate text-sm mb-0.5" title="${song.title}">${song.title}</h4>
         <p class="text-on-surface-variant text-xs truncate mb-3">${song.artist}</p>
       </div>
-      <div class="flex items-center justify-between pt-2 border-t border-white/5">
-        <span class="text-[10px] text-on-surface-variant/70 font-mono">Videoke #${song.song_number || song.id}</span>
-        <button class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center shadow hover:scale-105 active:scale-95 transition-transform" onclick="promptAddToQueue(${song.id})">
+      <div class="flex items-center justify-between pt-2 border-t border-white/5 gap-2">
+        <button class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-primary/20 text-on-surface-variant hover:text-primary text-[10px] font-bold border border-white/5 flex items-center gap-1 transition-all" onclick="fillDesktopRemoteCode('${song.song_number || song.id}')">
+          <span class="material-symbols-outlined text-[13px]">pin</span>
+          <span>Remote</span>
+        </button>
+        <button class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center shadow hover:scale-105 active:scale-95 transition-transform flex-shrink-0" onclick="promptAddToQueue(${song.id})">
           <span class="material-symbols-outlined text-md font-bold">add</span>
         </button>
       </div>
     `;
     songbookGrid.appendChild(card);
+  });
+}
+
+function renderHomeSongbookSpotlight() {
+  const container = document.getElementById('home-song-numbers-grid');
+  if (!container) return;
+
+  if (!songsList || songsList.length === 0) {
+    container.innerHTML = `
+      <div class="col-span-full py-8 text-center text-on-surface-variant text-xs">
+        No songs indexed yet. Go to Settings to configure your library folder.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = '';
+  // Show all or top 15 songs on home spotlight
+  songsList.slice(0, 15).forEach(song => {
+    const card = document.createElement('div');
+    card.className = 'glass-panel p-3.5 rounded-2xl flex items-center justify-between gap-3 border border-white/5 hover:border-primary/40 transition-all group bg-surface-container/60 hover:bg-surface-container';
+    card.innerHTML = `
+      <div class="flex items-center gap-2.5 min-w-0">
+        <span class="px-2.5 py-1 rounded-lg bg-primary/20 text-primary border border-primary/30 font-mono font-black text-xs shadow-sm flex-shrink-0 group-hover:scale-105 transition-transform">
+          #${song.song_number || song.id}
+        </span>
+        <div class="min-w-0">
+          <h4 class="font-bold text-xs text-white truncate leading-tight group-hover:text-primary transition-colors">${song.title}</h4>
+          <p class="text-[10px] text-on-surface-variant truncate mt-0.5">${song.artist}</p>
+        </div>
+      </div>
+      <button class="w-8 h-8 rounded-full bg-surface-container-high hover:bg-primary hover:text-on-primary text-primary flex items-center justify-center transition-all flex-shrink-0 shadow active:scale-95" title="Type #${song.song_number || song.id} on Remote" onclick="fillDesktopRemoteCode('${song.song_number || song.id}')">
+        <span class="material-symbols-outlined text-sm font-bold">pin</span>
+      </button>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function renderRemoteDirectory(filter = '') {
+  const container = document.getElementById('remote-dir-list');
+  if (!container) return;
+
+  if (!songsList || songsList.length === 0) {
+    container.innerHTML = `
+      <div class="py-12 text-center text-on-surface-variant text-xs">
+        No songs available in Songbook directory.
+      </div>
+    `;
+    return;
+  }
+
+  let list = [...songsList];
+  if (filter) {
+    const q = filter.toLowerCase();
+    list = list.filter(s =>
+      String(s.song_number || '').includes(q) ||
+      String(s.title || '').toLowerCase().includes(q) ||
+      String(s.artist || '').toLowerCase().includes(q)
+    );
+  }
+
+  if (list.length === 0) {
+    container.innerHTML = `
+      <div class="py-8 text-center text-on-surface-variant text-xs font-semibold">
+        No songs match "${filter}"
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = '';
+  list.forEach(song => {
+    const row = document.createElement('div');
+    row.className = 'p-3 rounded-2xl bg-surface-container border border-white/5 hover:border-primary/30 flex items-center justify-between gap-3 transition-colors';
+    row.innerHTML = `
+      <div class="flex items-center gap-3 min-w-0">
+        <span class="px-2.5 py-1 rounded-xl bg-primary/20 text-primary border border-primary/30 font-mono font-black text-xs flex-shrink-0 shadow-sm">
+          #${song.song_number || song.id}
+        </span>
+        <div class="min-w-0">
+          <h4 class="font-bold text-xs text-white truncate leading-tight">${song.title}</h4>
+          <p class="text-[10px] text-on-surface-variant truncate mt-0.5">${song.artist} &bull; <span class="text-white/60">${song.category || 'Pop'}</span></p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <button class="px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/25 border border-primary/30 text-primary font-bold text-xs flex items-center gap-1 active:scale-95 transition-all" onclick="fillDesktopRemoteCode('${song.song_number || song.id}')">
+          <span class="material-symbols-outlined text-[13px]">pin</span>
+          <span>Use Code</span>
+        </button>
+        <button class="w-7 h-7 rounded-full bg-surface-container-high hover:bg-primary hover:text-on-primary text-on-surface-variant flex items-center justify-center transition-all active:scale-95" title="Direct Queue" onclick="promptAddToQueue(${song.id})">
+          <span class="material-symbols-outlined text-sm">add</span>
+        </button>
+      </div>
+    `;
+    container.appendChild(row);
   });
 }
 
@@ -737,6 +891,9 @@ function renderRecentSongs(songs) {
     el.innerHTML = `
       <div class="relative aspect-square rounded-2xl overflow-hidden mb-3 bg-surface-container-highest flex items-center justify-center text-on-surface-variant group-hover:text-primary transition-all">
         <span class="material-symbols-outlined text-4xl group-hover:scale-110 transition-transform">music_note</span>
+        <div class="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/80 backdrop-blur-md text-primary font-mono font-bold text-[10px] border border-primary/30">
+          #${song.song_number || song.id}
+        </div>
         <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
           <span class="material-symbols-outlined text-white text-3xl">add_circle</span>
         </div>
@@ -811,7 +968,10 @@ function updateQueueUI(queue, current) {
           ${index + 1}
         </div>
         <div class="flex-grow min-w-0">
-          <h4 class="font-bold text-sm truncate">${item.title}</h4>
+          <div class="flex items-center gap-2 mb-0.5">
+            ${item.song_number ? `<span class="px-2 py-0.5 rounded bg-primary/20 text-primary border border-primary/30 font-mono font-black text-xs shadow-sm">#${item.song_number}</span>` : ''}
+            <h4 class="font-bold text-sm truncate">${item.title}</h4>
+          </div>
           <p class="text-xs text-on-surface-variant truncate">${item.artist} &bull; Singer: <span class="text-primary font-semibold">${item.singer_name}</span></p>
         </div>
         <div class="flex items-center gap-2">
@@ -824,11 +984,11 @@ function updateQueueUI(queue, current) {
 
   // Update Now Playing Info
   if (nowPlaying) {
-    npTitle.textContent = nowPlaying.title;
+    npTitle.textContent = `${nowPlaying.song_number ? '#' + nowPlaying.song_number + ' - ' : ''}${nowPlaying.title}`;
     npArtist.textContent = nowPlaying.artist;
     npSinger.textContent = `Singer: ${nowPlaying.singer_name}`;
     
-    footerSongTitle.textContent = nowPlaying.title;
+    footerSongTitle.textContent = `${nowPlaying.song_number ? '#' + nowPlaying.song_number + ' - ' : ''}${nowPlaying.title}`;
     footerSingerName.textContent = nowPlaying.singer_name;
     
     // Send video loading message to projector
@@ -1566,21 +1726,37 @@ function openDesktopRemoteModal() {
 }
 
 function updateDesktopRemoteDisplay() {
-  const display = document.getElementById('desktop-remote-display');
-  const preview = document.getElementById('desktop-remote-song-preview');
-  if (!display || !preview) return;
+  const modalDisplay = document.getElementById('desktop-remote-display');
+  const modalPreview = document.getElementById('desktop-remote-song-preview');
+  const paneDisplay = document.getElementById('pane-remote-display');
+  const panePreview = document.getElementById('pane-remote-preview');
+
+  const setDisplayText = (txt) => {
+    if (modalDisplay) modalDisplay.textContent = txt;
+    if (paneDisplay) paneDisplay.textContent = txt;
+  };
+
+  const setPreview = (txt, cls = 'text-xs text-white/70 font-medium truncate text-center min-h-[1.5rem] flex items-center justify-center') => {
+    if (modalPreview) {
+      modalPreview.textContent = txt;
+      modalPreview.className = cls;
+    }
+    if (panePreview) {
+      panePreview.textContent = txt;
+      panePreview.className = cls;
+    }
+  };
 
   if (!desktopRemoteCode) {
-    display.textContent = '_ _ _ _ _';
-    preview.textContent = 'Type 4-5 digit number from Songbook';
-    preview.className = 'text-xs text-white/70 font-medium truncate text-center min-h-[1.25rem]';
+    setDisplayText('_ _ _ _ _');
+    setPreview('Enter 4-5 digit song code from Songbook');
     return;
   }
 
   // Format code display with spaces e.g. 1 0 0 0 1
   const chars = desktopRemoteCode.split('');
   while (chars.length < 5) chars.push('_');
-  display.textContent = chars.join(' ');
+  setDisplayText(chars.join(' '));
 
   // Live lookup
   if (desktopRemoteCode.length >= 3) {
@@ -1588,19 +1764,16 @@ function updateDesktopRemoteDisplay() {
       .then(res => res.json())
       .then(data => {
         if (data.success && data.song) {
-          preview.textContent = `${data.song.title} - ${data.song.artist}`;
-          preview.className = 'text-xs text-primary font-bold truncate text-center min-h-[1.25rem] animate-pulse';
+          setPreview(`🎵 ${data.song.title} - ${data.song.artist}`, 'text-xs text-primary font-bold truncate text-center min-h-[1.5rem] flex items-center justify-center animate-pulse');
         } else {
-          preview.textContent = `No song found for #${desktopRemoteCode}`;
-          preview.className = 'text-xs text-red-400 font-medium truncate text-center min-h-[1.25rem]';
+          setPreview(`No song found for #${desktopRemoteCode}`, 'text-xs text-red-400 font-medium truncate text-center min-h-[1.5rem] flex items-center justify-center');
         }
       })
       .catch(() => {
-        preview.textContent = `Searching #${desktopRemoteCode}...`;
+        setPreview(`Searching #${desktopRemoteCode}...`);
       });
   } else {
-    preview.textContent = `Entering code (${desktopRemoteCode.length}/5)...`;
-    preview.className = 'text-xs text-white/70 font-medium truncate text-center min-h-[1.25rem]';
+    setPreview(`Entering code (${desktopRemoteCode.length}/5)...`);
   }
 }
 
@@ -1625,9 +1798,14 @@ function clearDesktopRemoteInput() {
 async function submitDesktopRemoteInput() {
   if (!desktopRemoteCode) return;
 
-  const singerInput = document.getElementById('desktop-remote-singer-input');
-  const singer = (singerInput && singerInput.value.trim()) ? singerInput.value.trim() : 'Host';
-  const preview = document.getElementById('desktop-remote-song-preview');
+  const paneSingerInput = document.getElementById('pane-remote-singer-input');
+  const modalSingerInput = document.getElementById('desktop-remote-singer-input');
+  const singer = (paneSingerInput && paneSingerInput.value.trim()) ||
+                 (modalSingerInput && modalSingerInput.value.trim()) ||
+                 'Host';
+
+  const modalPreview = document.getElementById('desktop-remote-song-preview');
+  const panePreview = document.getElementById('pane-remote-preview');
 
   try {
     const res = await fetch('/api/queue/by-number', {
@@ -1645,9 +1823,15 @@ async function submitDesktopRemoteInput() {
       playBeepTone(900);
       setTimeout(() => playBeepTone(1200), 100);
 
-      if (preview) {
-        preview.textContent = `QUEUED: ${data.song.title} (${singer})`;
-        preview.className = 'text-xs text-yellow-300 font-extrabold truncate text-center min-h-[1.25rem]';
+      const msg = `QUEUED: ${data.song.title} (${singer})`;
+      const successClass = 'text-xs text-yellow-300 font-extrabold truncate text-center min-h-[1.5rem] flex items-center justify-center';
+      if (modalPreview) {
+        modalPreview.textContent = msg;
+        modalPreview.className = successClass;
+      }
+      if (panePreview) {
+        panePreview.textContent = msg;
+        panePreview.className = successClass;
       }
 
       desktopRemoteCode = '';
@@ -1655,14 +1839,34 @@ async function submitDesktopRemoteInput() {
         updateDesktopRemoteDisplay();
         const modal = document.getElementById('modal-desktop-remote');
         if (modal) modal.classList.add('hidden');
+        loadQueue();
       }, 1200);
     } else {
       speakVoice('Error');
       playBeepTone(250);
-      if (preview) {
-        preview.textContent = data.error || 'Failed to queue song';
-        preview.className = 'text-xs text-red-400 font-bold truncate text-center min-h-[1.25rem]';
+      const errMsg = data.error || 'Failed to queue song';
+      const errClass = 'text-xs text-red-400 font-bold truncate text-center min-h-[1.5rem] flex items-center justify-center';
+      if (modalPreview) {
+        modalPreview.textContent = errMsg;
+        modalPreview.className = errClass;
       }
+      if (panePreview) {
+        panePreview.textContent = errMsg;
+        panePreview.className = errClass;
+      }
+    }
+  } catch (err) {
+    console.error('Remote queue error:', err);
+  }
+}
+
+function fillDesktopRemoteCode(code) {
+  desktopRemoteCode = String(code);
+  switchTab('remote');
+  updateDesktopRemoteDisplay();
+  speakVoice('Selected');
+}
+window.fillDesktopRemoteCode = fillDesktopRemoteCode;
     }
   } catch (err) {
     console.error('Remote queue error:', err);

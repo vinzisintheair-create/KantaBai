@@ -241,6 +241,14 @@
         <span class="material-symbols-outlined">library_music</span>
         <span>Songbook</span>
       </a>
+      <a data-tab="remote" href="#"
+        class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant font-medium hover:bg-surface-variant/50 transition-all">
+        <span class="material-symbols-outlined text-primary">pin</span>
+        <span class="flex items-center gap-2">
+          <span>Remote</span>
+          <span class="px-1.5 py-0.2 rounded-full bg-primary/20 text-primary text-[9px] font-black uppercase tracking-wider">v2</span>
+        </span>
+      </a>
       <a data-tab="queue" href="#"
         class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant font-medium hover:bg-surface-variant/50 transition-all relative">
         <span class="material-symbols-outlined">queue_music</span>
@@ -283,15 +291,22 @@
       </div>
     </div>
 
-    <div class="flex items-center gap-6">
+    <div class="flex items-center gap-4">
+      <button id="btn-header-remote"
+        class="px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
+        title="Open Videoke Remote Keypad">
+        <span class="material-symbols-outlined text-[18px]">pin</span>
+        <span class="hidden sm:inline">Remote Keypad</span>
+      </button>
       <button id="btn-toggle-projector"
         class="p-2 text-on-surface-variant hover:text-primary transition-all rounded-full hover:bg-surface-variant/30 relative"
         title="Toggle Projector Screen">
         <span class="material-symbols-outlined text-[22px]">tv</span>
       </button>
       <button id="btn-header-qr"
-        class="p-2 text-on-surface-variant hover:text-primary transition-all rounded-full hover:bg-surface-variant/30 relative">
-        <span class="material-symbols-outlined">qr_code_2</span>
+        class="p-2 text-on-surface-variant hover:text-primary transition-all rounded-full hover:bg-surface-variant/30 relative"
+        title="Connect Phone Companion">
+        <span class="material-symbols-outlined text-[22px]">qr_code_2</span>
       </button>
       <div class="flex items-center gap-3 pl-4 border-l border-outline-variant/20">
         <div class="text-right">
@@ -314,48 +329,91 @@
         <div class="grid grid-cols-1 md:grid-cols-12 gap-6 mb-8">
           <!-- Hero Banner (Left) -->
           <div
-            class="md:col-span-8 relative rounded-3xl overflow-hidden aspect-[21/10] sm:aspect-[21/8] md:aspect-[21/10.5] group shadow-2xl">
+            class="md:col-span-6 relative rounded-3xl overflow-hidden aspect-[21/10] sm:aspect-[21/8] md:aspect-[21/11] group shadow-2xl">
             <div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
               style="background-image: url('https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&q=80&w=1200');">
             </div>
-            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent"></div>
-            <div class="absolute bottom-0 left-0 p-8 max-w-xl">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+            <div class="absolute bottom-0 left-0 p-7 max-w-xl">
               <span
-                class="inline-block px-3 py-1 bg-primary text-on-primary font-bold text-xs rounded-full mb-3 uppercase tracking-wider">TONIGHT'S
-                SPECIAL</span>
-              <h2 class="text-2xl font-extrabold text-white mb-2 leading-tight">Unleash Your Inner Legend</h2>
-              <p class="text-white/80 text-xs">Browse studio-quality tracks, build your queue, and command the stage
-                with zero lag. Scan the QR code to join in.</p>
+                class="inline-block px-3 py-1 bg-primary text-on-primary font-bold text-[10px] rounded-full mb-2 uppercase tracking-wider">VERSION 2
+                NOSTALGIA</span>
+              <h2 class="text-2xl font-black text-white mb-1.5 leading-tight">Pinoy Videoke Experience</h2>
+              <p class="text-white/80 text-xs">Enter 4-5 digit song codes on the remote keypad with authentic voice feedback and printable songbooks.</p>
+            </div>
+          </div>
+
+          <!-- Remote Keypad Shortcut Card (Center) -->
+          <div id="btn-home-remote-shortcut"
+            class="md:col-span-3 glass-panel rounded-3xl p-6 flex flex-col justify-between shadow-2xl relative overflow-hidden group cursor-pointer border border-primary/30 hover:border-primary/60 transition-all hover:scale-[1.02] active:scale-95 bg-primary/5">
+            <div class="absolute inset-0 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent opacity-70"></div>
+
+            <div class="flex items-center justify-between z-10">
+              <div
+                class="w-12 h-12 rounded-2xl bg-primary/20 text-primary flex items-center justify-center shadow-inner font-bold">
+                <span class="material-symbols-outlined text-2xl animate-pulse">pin</span>
+              </div>
+              <span
+                class="px-2.5 py-0.5 rounded-full bg-primary text-on-primary text-[9px] font-extrabold uppercase tracking-widest">Remote
+                v2</span>
+            </div>
+
+            <div class="z-10 my-4">
+              <h3 class="text-base font-extrabold text-white group-hover:text-primary transition-colors">Enter Song #</h3>
+              <p class="text-white/70 text-[11px] mt-1 leading-snug">Punch in song codes with Platinum voice feedback to queue tracks.</p>
+            </div>
+
+            <div
+              class="flex items-center gap-1.5 text-[11px] font-black text-primary z-10 group-hover:translate-x-1 transition-transform">
+              <span>Open Remote</span>
+              <span class="material-symbols-outlined text-sm">arrow_forward</span>
             </div>
           </div>
 
           <!-- Video Player Shortcut Card (Right) -->
           <div id="btn-home-video-shortcut"
-            class="md:col-span-4 glass-panel rounded-3xl p-6 flex flex-col justify-between shadow-2xl relative overflow-hidden group cursor-pointer border border-primary/20 hover:border-primary/50 transition-all hover:scale-[1.02] active:scale-95">
-            <div class="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-60"></div>
+            class="md:col-span-3 glass-panel rounded-3xl p-6 flex flex-col justify-between shadow-2xl relative overflow-hidden group cursor-pointer border border-white/10 hover:border-primary/40 transition-all hover:scale-[1.02] active:scale-95">
+            <div class="absolute inset-0 bg-gradient-to-br from-secondary/10 to-transparent opacity-50"></div>
 
             <div class="flex items-center justify-between z-10">
               <div
-                class="w-12 h-12 rounded-2xl bg-primary/20 text-primary flex items-center justify-center shadow-inner">
-                <span class="material-symbols-outlined text-2xl font-bold animate-[pulse_1.5s_infinite]">tv</span>
+                class="w-12 h-12 rounded-2xl bg-surface-container-highest text-white flex items-center justify-center shadow-inner">
+                <span class="material-symbols-outlined text-2xl font-bold">tv</span>
               </div>
               <span
-                class="px-2.5 py-0.5 rounded-full bg-primary text-on-primary text-[9px] font-extrabold uppercase tracking-widest">Live
-                Screen</span>
+                class="px-2.5 py-0.5 rounded-full bg-surface-container-highest text-on-surface-variant text-[9px] font-bold uppercase tracking-widest">Screen</span>
             </div>
 
-            <div class="z-10 mt-6">
-              <h3 class="text-lg font-extrabold text-white group-hover:text-primary transition-colors">Open Video Screen
-              </h3>
-              <p class="text-white/60 text-[11px] mt-1">Go directly to the fullscreen video player and lyrics display.
-              </p>
+            <div class="z-10 my-4">
+              <h3 class="text-base font-extrabold text-white group-hover:text-primary transition-colors">Projector TV</h3>
+              <p class="text-white/70 text-[11px] mt-1 leading-snug">Open dual-screen projector showing Up Next & who chose the song.</p>
             </div>
 
             <div
-              class="flex items-center gap-2 mt-4 text-[10px] font-bold text-primary z-10 group-hover:translate-x-1 transition-transform">
-              <span>Launch Fullscreen</span>
+              class="flex items-center gap-1.5 text-[11px] font-bold text-on-surface-variant group-hover:text-primary z-10 group-hover:translate-x-1 transition-transform">
+              <span>Launch TV</span>
               <span class="material-symbols-outlined text-sm">arrow_forward</span>
             </div>
+          </div>
+        </div>
+
+        <!-- Assigned Songbook Numbers Spotlight Section -->
+        <div class="mb-8">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 mb-4">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="px-2 py-0.5 rounded-full bg-primary/20 text-primary font-mono font-bold text-[10px] tracking-wider uppercase">Catalog Numbers</span>
+                <h2 class="text-xl font-extrabold text-white">Assigned Song Codes</h2>
+              </div>
+              <p class="text-xs text-on-surface-variant">Click any song code to jump straight to the remote and reserve it</p>
+            </div>
+            <button class="px-3.5 py-1.5 rounded-xl bg-surface-container-high hover:bg-surface-container border border-white/10 text-xs font-bold text-primary flex items-center gap-1.5 transition-all shadow-sm active:scale-95" onclick="switchTab('songbook')">
+              <span>View All Tracks</span>
+              <span class="material-symbols-outlined text-sm">arrow_forward</span>
+            </button>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4" id="home-song-numbers-grid">
+            <!-- Dynamically populated with song numbers -->
           </div>
         </div>
 
@@ -774,6 +832,120 @@
                 </div>
               </div>
             </section>
+      </section>
+ 
+      <!-- View: Remote Station (Dedicated V2 View) -->
+      <section id="pane-remote" class="view-pane">
+        <div class="flex flex-col gap-6 mb-6">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 pb-2 border-b border-white/5">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="px-2.5 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30 text-[10px] font-black uppercase tracking-wider">
+                  Nostalgic Videoke Keypad
+                </span>
+                <span class="text-xs text-on-surface-variant font-semibold">• Platinum Karaoke Voice (0-9)</span>
+              </div>
+              <h2 class="text-2xl font-black text-white uppercase tracking-tight">Remote Keypad & Song Numbers</h2>
+              <p class="text-xs text-on-surface-variant">Type any 4-to-5 digit song code from the catalog to queue tracks directly to the TV screen</p>
+            </div>
+            
+            <div class="flex items-center gap-3">
+              <label class="flex items-center gap-2 cursor-pointer bg-surface-container-high px-4 py-2 rounded-xl border border-white/10 text-xs font-bold text-white shadow-sm hover:border-primary/40 transition-colors">
+                <input id="pane-remote-voice-toggle" type="checkbox" checked class="w-4 h-4 accent-primary cursor-pointer">
+                <span>Voice Audio Feedback</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            <!-- Left: Retro Videoke Console -->
+            <div class="lg:col-span-5 flex flex-col items-center">
+              <div class="glass-panel p-6 sm:p-7 rounded-3xl max-w-sm w-full shadow-2xl border border-primary/30 relative bg-surface-container/70">
+                
+                <div class="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
+                  <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg bg-primary/20 text-primary flex items-center justify-center font-bold">
+                      <span class="material-symbols-outlined text-base">pin</span>
+                    </div>
+                    <span class="text-xs font-black text-white uppercase tracking-wider">Videoke Remote</span>
+                  </div>
+                  <span id="pane-remote-status" class="px-2.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-mono text-[10px] font-bold">READY</span>
+                </div>
+
+                <!-- Digital LCD Display -->
+                <div class="bg-black/95 p-4 rounded-2xl border-2 border-primary/40 mb-4 shadow-inner space-y-1.5">
+                  <div class="flex items-center justify-between text-[10px] text-primary/80 font-mono font-bold tracking-widest uppercase">
+                    <span>SONG CODE</span>
+                    <span class="flex items-center gap-1 text-[9px] text-emerald-400 font-mono">
+                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> DIGIT 0-9
+                    </span>
+                  </div>
+                  <div id="pane-remote-display" class="font-mono text-4xl font-black text-primary tracking-[0.35em] text-center py-1 select-none">
+                    _ _ _ _ _
+                  </div>
+                  <div id="pane-remote-preview" class="text-xs text-white/70 font-medium truncate text-center min-h-[1.5rem] flex items-center justify-center">
+                    Enter 4-5 digit song code
+                  </div>
+                </div>
+
+                <!-- Singer Name Input -->
+                <div class="mb-4">
+                  <label class="text-[11px] font-bold text-on-surface-variant mb-1 block">Singer Name</label>
+                  <input id="pane-remote-singer-input" type="text" placeholder="Enter singer name..." value="Host"
+                    class="w-full bg-surface-container-highest border border-white/10 rounded-xl px-3.5 py-2.5 text-xs focus:ring-1 focus:ring-primary outline-none text-white font-medium">
+                </div>
+
+                <!-- Keypad Buttons -->
+                <div class="grid grid-cols-3 gap-2.5 mb-3 select-none">
+                  <button class="pn-key p-3.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-white/10 text-white font-mono font-black text-xl active:scale-90 transition-all flex items-center justify-center" data-val="1">1</button>
+                  <button class="pn-key p-3.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-white/10 text-white font-mono font-black text-xl active:scale-90 transition-all flex items-center justify-center" data-val="2">2</button>
+                  <button class="pn-key p-3.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-white/10 text-white font-mono font-black text-xl active:scale-90 transition-all flex items-center justify-center" data-val="3">3</button>
+                  
+                  <button class="pn-key p-3.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-white/10 text-white font-mono font-black text-xl active:scale-90 transition-all flex items-center justify-center" data-val="4">4</button>
+                  <button class="pn-key p-3.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-white/10 text-white font-mono font-black text-xl active:scale-90 transition-all flex items-center justify-center" data-val="5">5</button>
+                  <button class="pn-key p-3.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-white/10 text-white font-mono font-black text-xl active:scale-90 transition-all flex items-center justify-center" data-val="6">6</button>
+                  
+                  <button class="pn-key p-3.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-white/10 text-white font-mono font-black text-xl active:scale-90 transition-all flex items-center justify-center" data-val="7">7</button>
+                  <button class="pn-key p-3.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-white/10 text-white font-mono font-black text-xl active:scale-90 transition-all flex items-center justify-center" data-val="8">8</button>
+                  <button class="pn-key p-3.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-white/10 text-white font-mono font-black text-xl active:scale-90 transition-all flex items-center justify-center" data-val="9">9</button>
+                  
+                  <button id="btn-pane-remote-clear" class="p-3.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 font-black text-xs active:scale-90 transition-all flex items-center justify-center">CLEAR</button>
+                  <button class="pn-key p-3.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-white/10 text-white font-mono font-black text-xl active:scale-90 transition-all flex items-center justify-center" data-val="0">0</button>
+                  <button id="btn-pane-remote-enter" class="p-3.5 rounded-xl bg-primary text-on-primary font-black text-sm active:scale-90 transition-all flex items-center justify-center shadow-lg shadow-primary/20">ENTER</button>
+                </div>
+
+                <p class="text-[10px] text-center text-on-surface-variant pt-1 font-mono">
+                  Press 0-9 & Enter &bull; Voice audio feedback enabled
+                </p>
+              </div>
+            </div>
+
+            <!-- Right: Song Numbers Directory & Quick Reference -->
+            <div class="lg:col-span-7 flex flex-col gap-4">
+              <div class="glass-panel p-6 rounded-3xl border border-white/10 shadow-xl bg-surface-container/50">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-white/10">
+                  <div>
+                    <h3 class="text-base font-extrabold text-white flex items-center gap-2">
+                      <span class="material-symbols-outlined text-primary text-xl">menu_book</span>
+                      <span>Assigned Song Codes Directory</span>
+                    </h3>
+                    <p class="text-[11px] text-on-surface-variant mt-0.5">Click any song number to fill it directly into the remote keypad</p>
+                  </div>
+                  <div class="relative w-full sm:w-60">
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+                    <input id="remote-dir-search" type="text" placeholder="Search title or number..."
+                      class="w-full bg-surface-container-highest/60 border border-white/10 rounded-xl py-1.5 pl-9 pr-3 text-xs text-white placeholder:text-on-surface-variant/50 focus:ring-1 focus:ring-primary outline-none">
+                  </div>
+                </div>
+
+                <!-- Song list with codes -->
+                <div class="max-h-[500px] overflow-y-auto space-y-2 pr-1" id="remote-dir-list">
+                  <!-- Dynamically populated rows -->
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>
