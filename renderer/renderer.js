@@ -94,14 +94,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Hide Intro Screen after 3 seconds
-  setTimeout(() => {
+  // Hide Intro Screen after 2s or on immediate user click
+  const hideIntro = () => {
     const intro = document.getElementById('intro-screen');
-    intro.style.opacity = 0;
+    if (!intro || intro.style.display === 'none') return;
+    intro.style.opacity = '0';
+    intro.style.pointerEvents = 'none';
     setTimeout(() => {
       intro.style.display = 'none';
-    }, 1000);
-  }, 3000);
+    }, 600);
+  };
+  const introEl = document.getElementById('intro-screen');
+  if (introEl) {
+    introEl.addEventListener('click', hideIntro);
+  }
+  setTimeout(hideIntro, 2000);
 
   setupEventListeners();
   
@@ -1867,8 +1874,4 @@ function fillDesktopRemoteCode(code) {
   speakVoice('Selected');
 }
 window.fillDesktopRemoteCode = fillDesktopRemoteCode;
-    }
-  } catch (err) {
-    console.error('Remote queue error:', err);
-  }
-}
+
