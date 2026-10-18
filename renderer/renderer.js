@@ -141,6 +141,14 @@ function setupSocketHandlers() {
     systemSettings = data.settings;
     updateSettingsUI(data.settings);
     updateQueueUI(data.queue, data.nowPlaying);
+    if (data.tunnel) {
+      updateTunnelUI(data.tunnel);
+    }
+    generateQrCode();
+  });
+
+  socket.on('tunnel_status', (data) => {
+    updateTunnelUI(data);
     generateQrCode();
   });
 
@@ -155,6 +163,12 @@ function setupSocketHandlers() {
 
   socket.on('songbook_updated', () => {
     loadAllSongs();
+  });
+
+  socket.on('song_reserved', (data) => {
+    if (window.electronAPI) {
+      window.electronAPI.sendToProjector('projector-reserved', data);
+    }
   });
 
   // Triggered by companion phone or keyboard commands
@@ -224,7 +238,8 @@ function syncPlaybackToProjector() {
       src: videoUrl,
       title: nowPlaying.title,
       artist: nowPlaying.artist,
-      singer: nowPlaying.singer_name
+      singer: nowPlaying.singer_name,
+      songNumber: nowPlaying.song_number
     });
     
     window.electronAPI.sendToProjector(isPlaybackActive ? 'projector-play' : 'projector-pause');
@@ -293,13 +308,99 @@ function setupEventListeners() {
   // Connect Phone QR Toggle
   document.getElementById('btn-connect-phone').addEventListener('click', () => {
     modalQr.classList.remove('hidden');
+    generateQrCode();
   });
   document.getElementById('btn-header-qr').addEventListener('click', () => {
     modalQr.classList.remove('hidden');
+    generateQrCode();
   });
   document.getElementById('btn-close-qr').addEventListener('click', () => {
     modalQr.classList.add('hidden');
   });
+
+  // QR Modal Tabs
+  const tabQrLocal = document.getElementById('tab-qr-local');
+  const tabQrTunnel = document.getElementById('tab-qr-tunnel');
+  const paneQrLocal = document.getElementById('pane-qr-local');
+  const paneQrTunnel = document.getElementById('pane-qr-tunnel');
+
+  if (tabQrLocal && tabQrTunnel) {
+    tabQrLocal.addEventListener('click', () => {
+      tabQrLocal.className = 'py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 bg-primary text-on-primary shadow-sm';
+      tabQrTunnel.className = 'py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 text-on-surface-variant hover:text-white';
+      paneQrLocal.classList.remove('hidden');
+      paneQrTunnel.classList.add('hidden');
+    });
+
+    tabQrTunnel.addEventListener('click', () => {
+      tabQrTunnel.className = 'py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 bg-primary text-on-primary shadow-sm';
+      tabQrLocal.className = 'py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 text-on-surface-variant hover:text-white';
+      paneQrTunnel.classList.remove('hidden');
+      paneQrLocal.classList.add('hidden');
+    });
+  }
+
+  // Tunnel Start / Stop / Retry Buttons in Modal and Settings
+  const btnStartTunnelModal = document.getElementById('btn-start-tunnel-modal');
+  if (btnStartTunnelModal) btnStartTunnelModal.addEventListener('click', startCloudflareTunnel);
+
+  const btnStopTunnelModal = document.getElementById('btn-stop-tunnel-modal');
+  if (btnStopTunnelModal) btnStopTunnelModal.addEventListener('click', stopCloudflareTunnel);
+
+  const btnRetryTunnelModal = document.getElementById('btn-retry-tunnel-modal');
+  if (btnRetryTunnelModal) btnRetryTunnelModal.addEventListener('click', startCloudflareTunnel);
+
+  const btnToggleTunnelSettings = document.getElementById('btn-toggle-tunnel-settings');
+  if (btnToggleTunnelSettings) {
+    btnToggleTunnelSettings.addEventListener('click', () => {
+      if (latestTunnelState.status === 'running') {
+        stopCloudflareTunnel();
+      } else {
+        startCloudflareTunnel();
+      }
+    });
+  }
+
+  // Copy URL Helpers
+  const copyHelper = (text, btn) => {
+    if (!text || text.includes('...')) return;
+    navigator.clipboard.writeText(text).then(() => {
+      const origHtml = btn.innerHTML;
+      btn.innerHTML = '<span class="material-symbols-outlined text-sm text-primary">done</span>';
+      setTimeout(() => { btn.innerHTML = origHtml; }, 1500);
+    });
+  };
+
+  const btnCopyLocal = document.getElementById('btn-copy-local-url');
+  if (btnCopyLocal) {
+    btnCopyLocal.addEventListener('click', () => {
+      copyHelper(qrUrlText ? qrUrlText.textContent : '', btnCopyLocal);
+    });
+  }
+
+  const btnCopyTunnel = document.getElementById('btn-copy-tunnel-url');
+  if (btnCopyTunnel) {
+    btnCopyTunnel.addEventListener('click', () => {
+      const el = document.getElementById('qr-tunnel-url-text');
+      copyHelper(el ? el.textContent : '', btnCopyTunnel);
+    });
+  }
+
+  const btnCopySettingsTunnel = document.getElementById('btn-copy-settings-tunnel-url');
+  if (btnCopySettingsTunnel) {
+    btnCopySettingsTunnel.addEventListener('click', () => {
+      const el = document.getElementById('settings-tunnel-url-text');
+      copyHelper(el ? el.textContent : '', btnCopySettingsTunnel);
+    });
+  }
+
+  // Auto-start tunnel checkbox change
+  const autoStartTunnelEl = document.getElementById('settings-autostart-tunnel');
+  if (autoStartTunnelEl) {
+    autoStartTunnelEl.addEventListener('change', () => {
+      saveSettings();
+    });
+  }
 
   // Admin Verification
   document.getElementById('btn-admin-mode').addEventListener('click', () => {
@@ -364,8 +465,24 @@ function setupEventListeners() {
   });
 
   // Settings Events
+  const btnBrowseLibrary = document.getElementById('btn-browse-library');
+  if (btnBrowseLibrary) {
+    btnBrowseLibrary.addEventListener('click', handleBrowseLibrary);
+  }
   document.getElementById('btn-rescan-library').addEventListener('click', rescanLibrary);
   document.getElementById('btn-restart-server').addEventListener('click', saveSettings);
+  
+  // Save when library path is typed or modified
+  settingsLibraryPath.addEventListener('change', () => {
+    saveSettings();
+  });
+  settingsLibraryPath.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveSettings().then(() => rescanLibrary());
+    }
+  });
+
   settingsVolume.addEventListener('input', (e) => {
     settingsVolumeLabel.textContent = `${e.target.value}%`;
     footerVolumeSlider.value = e.target.value;
@@ -402,6 +519,71 @@ function setupEventListeners() {
         }
       });
     }
+  });
+
+  // Videoke Remote Permissions Setting Toggle
+  const userRemoteToggle = document.getElementById('settings-user-remote-input');
+  if (userRemoteToggle) {
+    userRemoteToggle.addEventListener('change', () => {
+      saveSettings();
+    });
+  }
+
+  // Print Songbook Modal Listeners
+  const btnPrintSongbook = document.getElementById('btn-print-songbook');
+  if (btnPrintSongbook) {
+    btnPrintSongbook.addEventListener('click', openPrintSongbookModal);
+  }
+
+  const btnClosePrintModal = document.getElementById('btn-close-print-modal');
+  if (btnClosePrintModal) {
+    btnClosePrintModal.addEventListener('click', () => {
+      document.getElementById('modal-print-songbook').classList.add('hidden');
+    });
+  }
+
+  const btnExecutePrint = document.getElementById('btn-execute-print');
+  if (btnExecutePrint) {
+    btnExecutePrint.addEventListener('click', executePrintSongbook);
+  }
+
+  const printSortBy = document.getElementById('print-sort-by');
+  if (printSortBy) {
+    printSortBy.addEventListener('change', renderPrintSongbookPreview);
+  }
+
+  const printCatFilter = document.getElementById('print-category-filter');
+  if (printCatFilter) {
+    printCatFilter.addEventListener('change', renderPrintSongbookPreview);
+  }
+
+  // Desktop Remote Modal Listeners
+  const btnOpenRemoteModal = document.getElementById('btn-open-remote-modal');
+  if (btnOpenRemoteModal) {
+    btnOpenRemoteModal.addEventListener('click', openDesktopRemoteModal);
+  }
+
+  const btnCloseRemoteModal = document.getElementById('btn-close-remote-modal');
+  if (btnCloseRemoteModal) {
+    btnCloseRemoteModal.addEventListener('click', () => {
+      document.getElementById('modal-desktop-remote').classList.add('hidden');
+    });
+  }
+
+  const btnDesktopRemoteClear = document.getElementById('btn-desktop-remote-clear');
+  if (btnDesktopRemoteClear) {
+    btnDesktopRemoteClear.addEventListener('click', clearDesktopRemoteInput);
+  }
+
+  const btnDesktopRemoteEnter = document.getElementById('btn-desktop-remote-enter');
+  if (btnDesktopRemoteEnter) {
+    btnDesktopRemoteEnter.addEventListener('click', submitDesktopRemoteInput);
+  }
+
+  document.querySelectorAll('.dt-key').forEach(btn => {
+    btn.addEventListener('click', () => {
+      pressDesktopRemoteDigit(btn.getAttribute('data-val'));
+    });
   });
 }
 
@@ -485,15 +667,27 @@ function filterSongbookCategory(cat) {
 // --- Render Templates ---
 function renderSongbook() {
   songbookCount.textContent = `Browse over ${songsList.length} indexed karaoke tracks`;
+  if (settingsSongCount) {
+    settingsSongCount.textContent = `${songsList.length} songs indexed`;
+  }
   songbookGrid.innerHTML = '';
 
   if (songsList.length === 0) {
     songbookGrid.innerHTML = `
-      <div class="col-span-full py-16 text-center text-on-surface-variant">
-        <span class="material-symbols-outlined text-4xl mb-2">library_music</span>
-        <p class="text-sm">No songs found in the library. Go to Settings to configure path and index your files.</p>
+      <div class="col-span-full py-16 text-center text-on-surface-variant flex flex-col items-center">
+        <span class="material-symbols-outlined text-5xl mb-3 text-primary/60">library_music</span>
+        <h4 class="text-base font-bold text-on-surface mb-1">No songs found in the library</h4>
+        <p class="text-xs text-on-surface-variant max-w-md mb-5">Configure your karaoke video folder in Settings to start indexing and playing your songs.</p>
+        <button id="btn-empty-configure-library" class="px-5 py-2.5 bg-primary text-on-primary rounded-xl text-xs font-bold hover:bg-primary-container active:scale-95 transition-all flex items-center gap-2 shadow-lg shadow-primary/20">
+          <span class="material-symbols-outlined text-sm">folder_open</span>
+          <span>Configure Library Path</span>
+        </button>
       </div>
     `;
+    const btnEmptyConfig = document.getElementById('btn-empty-configure-library');
+    if (btnEmptyConfig) {
+      btnEmptyConfig.addEventListener('click', () => switchTab('settings'));
+    }
     return;
   }
 
@@ -502,16 +696,24 @@ function renderSongbook() {
     card.className = 'group relative overflow-hidden rounded-2xl bg-surface-container transition-all hover:bg-surface-container-high border border-outline-variant/10 p-5 flex flex-col justify-between';
     card.innerHTML = `
       <div>
-        <div class="w-full aspect-square rounded-xl bg-surface-container-highest mb-4 overflow-hidden relative flex items-center justify-center text-on-surface-variant group-hover:text-primary transition-all">
+        <div class="w-full aspect-square rounded-xl bg-surface-container-highest mb-3 overflow-hidden relative flex items-center justify-center text-on-surface-variant group-hover:text-primary transition-all">
           <span class="material-symbols-outlined text-4xl group-hover:scale-110 transition-transform">music_note</span>
         </div>
+        <div class="flex items-center justify-between mb-1.5">
+          <span class="px-2.5 py-0.5 bg-primary/20 text-primary border border-primary/30 rounded-md font-mono font-black text-xs shadow-sm">
+            #${song.song_number || song.id}
+          </span>
+          <span class="px-2 py-0.5 bg-surface-container-highest text-[10px] font-semibold text-on-surface-variant rounded">
+            ${song.category || 'Pop'}
+          </span>
+        </div>
         <h4 class="font-bold text-on-surface truncate text-sm mb-0.5" title="${song.title}">${song.title}</h4>
-        <p class="text-on-surface-variant text-xs truncate mb-4">${song.artist}</p>
+        <p class="text-on-surface-variant text-xs truncate mb-3">${song.artist}</p>
       </div>
-      <div class="flex items-center justify-between">
-        <span class="px-2 py-0.5 bg-surface-container-highest text-[10px] font-semibold text-on-surface-variant rounded">${song.category || 'Pop'}</span>
+      <div class="flex items-center justify-between pt-2 border-t border-white/5">
+        <span class="text-[10px] text-on-surface-variant/70 font-mono">Videoke #${song.song_number || song.id}</span>
         <button class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center shadow hover:scale-105 active:scale-95 transition-transform" onclick="promptAddToQueue(${song.id})">
-          <span class="material-symbols-outlined text-md">add</span>
+          <span class="material-symbols-outlined text-md font-bold">add</span>
         </button>
       </div>
     `;
@@ -638,7 +840,8 @@ function updateQueueUI(queue, current) {
           src: videoUrl,
           title: nowPlaying.title,
           artist: nowPlaying.artist,
-          singer: nowPlaying.singer_name
+          singer: nowPlaying.singer_name,
+          songNumber: nowPlaying.song_number
         });
       }
     }
@@ -656,9 +859,15 @@ function updateQueueUI(queue, current) {
         src: null,
         title: '--',
         artist: '--',
-        singer: '--'
+        singer: '--',
+        songNumber: null
       });
     }
+  }
+
+  // Always keep projector up next / waitlist updated
+  if (window.electronAPI) {
+    window.electronAPI.sendToProjector('projector-queue', { queue: queueList });
   }
 
   // Forward waitlist queue to projector window
@@ -735,29 +944,86 @@ document.getElementById('btn-clear-queue').addEventListener('click', () => {
 });
 
 // --- Settings Management ---
+async function handleBrowseLibrary() {
+  if (window.electronAPI && window.electronAPI.selectDirectory) {
+    try {
+      const selectedPath = await window.electronAPI.selectDirectory();
+      if (selectedPath) {
+        settingsLibraryPath.value = selectedPath;
+        await saveSettings();
+        await rescanLibrary();
+      }
+    } catch (err) {
+      console.error('Error selecting directory:', err);
+    }
+  } else {
+    const currentVal = settingsLibraryPath.value || '';
+    const manualPath = prompt('Enter the absolute path to your karaoke video directory:', currentVal);
+    if (manualPath && manualPath.trim()) {
+      settingsLibraryPath.value = manualPath.trim();
+      await saveSettings();
+      await rescanLibrary();
+    }
+  }
+}
+
 function updateSettingsUI(settings) {
-  settingsPort.value = settings.serverPort;
-  settingsLibraryPath.value = settings.libraryPath;
-  settingsVolume.value = settings.masterVolume;
-  settingsVolumeLabel.textContent = `${settings.masterVolume}%`;
-  footerVolumeSlider.value = settings.masterVolume;
-  settingsFullscreen.checked = settings.fullscreen;
-  settingsHardware.checked = settings.hardwareAcceleration;
+  if (!settings) return;
+  settingsPort.value = settings.serverPort || 8080;
+  settingsLibraryPath.value = settings.libraryPath || '';
+  settingsVolume.value = settings.masterVolume !== undefined ? settings.masterVolume : 85;
+  settingsVolumeLabel.textContent = `${settingsVolume.value}%`;
+  footerVolumeSlider.value = settingsVolume.value;
+  settingsFullscreen.checked = !!settings.fullscreen;
+  settingsHardware.checked = !!settings.hardwareAcceleration;
+
+  const autoStartTunnelEl = document.getElementById('settings-autostart-tunnel');
+  if (autoStartTunnelEl) {
+    autoStartTunnelEl.checked = !!settings.autoStartTunnel;
+  }
+
+  // Update user remote input toggle and notice
+  const userRemoteInputEl = document.getElementById('settings-user-remote-input');
+  const remoteNotice = document.getElementById('remote-input-status-notice');
+  const remoteText = document.getElementById('remote-input-status-text');
+  if (userRemoteInputEl) {
+    const isEnabled = settings.userRemoteInputEnabled !== false;
+    userRemoteInputEl.checked = isEnabled;
+    if (remoteNotice && remoteText) {
+      if (isEnabled) {
+        remoteNotice.className = 'p-2.5 rounded-xl bg-primary/10 border border-primary/20 text-[10px] text-primary font-bold flex items-center gap-2';
+        remoteNotice.innerHTML = `
+          <span class="material-symbols-outlined text-sm">lock_open</span>
+          <span>Singers CAN input songs via mobile remote</span>
+        `;
+      } else {
+        remoteNotice.className = 'p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-[10px] text-amber-400 font-bold flex items-center gap-2';
+        remoteNotice.innerHTML = `
+          <span class="material-symbols-outlined text-sm">lock</span>
+          <span>LOCKED: Only ADMIN can input songs via remote</span>
+        `;
+      }
+    }
+  }
   
   // Set volume of video tag
-  updateVolume(settings.masterVolume);
+  updateVolume(settingsVolume.value);
 }
 
 async function saveSettings() {
+  const autoStartTunnelEl = document.getElementById('settings-autostart-tunnel');
+  const userRemoteInputEl = document.getElementById('settings-user-remote-input');
   const newSettings = {
     libraryPath: settingsLibraryPath.value.trim(),
     serverPort: parseInt(settingsPort.value) || 8080,
     theme: systemSettings ? systemSettings.theme : 'Midnight (Dark)',
     ambientVisualizer: systemSettings ? systemSettings.ambientVisualizer : 'Neon Pulse (Default)',
-    masterVolume: parseInt(settingsVolume.value),
+    masterVolume: parseInt(settingsVolume.value) || 85,
     adminPassword: systemSettings ? systemSettings.adminPassword : 'admin',
     fullscreen: settingsFullscreen.checked,
-    hardwareAcceleration: settingsHardware.checked
+    hardwareAcceleration: settingsHardware.checked,
+    autoStartTunnel: autoStartTunnelEl ? autoStartTunnelEl.checked : false,
+    userRemoteInputEnabled: userRemoteInputEl ? userRemoteInputEl.checked : true
   };
 
   try {
@@ -768,8 +1034,13 @@ async function saveSettings() {
     });
     const data = await res.json();
     if (data.success) {
-      systemSettings = newSettings;
+      systemSettings = data.settings || newSettings;
       console.log('Settings saved successfully.');
+      if (data.scanResult) {
+        settingsSongCount.textContent = `${data.scanResult.total} songs indexed`;
+        loadAllSongs();
+      }
+      return data;
     }
   } catch (err) {
     console.error('Error saving settings:', err);
@@ -778,8 +1049,11 @@ async function saveSettings() {
 
 async function rescanLibrary() {
   const btn = document.getElementById('btn-rescan-library');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">sync</span> Scanning...';
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">sync</span> Scanning...';
+  }
   
   try {
     const res = await fetch('/api/scan', { method: 'POST' });
@@ -794,8 +1068,10 @@ async function rescanLibrary() {
   } catch (err) {
     console.error('Error scanning library:', err);
   } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<span class="material-symbols-outlined text-sm">folder_open</span> Rescan Library';
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml || '<span class="material-symbols-outlined text-base">sync</span><span>Rescan Library</span>';
+    }
   }
 }
 
@@ -806,7 +1082,24 @@ function updateVolume(val) {
   }
 }
 
-function playVideo() {
+async function playVideo() {
+  if (!nowPlaying) {
+    if (queueList.length > 0) {
+      try {
+        const nextPending = queueList[0];
+        await fetch(`/api/queue/singing/${nextPending.queue_id}`, { method: 'POST' });
+        loadQueue();
+        setTimeout(() => {
+          if (window.electronAPI) {
+            window.electronAPI.sendToProjector('projector-play');
+          }
+        }, 500);
+      } catch (err) {
+        console.error('Failed to start first song in queue:', err);
+      }
+    }
+    return;
+  }
   if (window.electronAPI) {
     window.electronAPI.sendToProjector('projector-play');
   }
@@ -824,7 +1117,11 @@ function stopVideo() {
   }
 }
 
-function togglePlayPause() {
+async function togglePlayPause() {
+  if (!nowPlaying) {
+    await playVideo();
+    return;
+  }
   if (window.electronAPI) {
     window.electronAPI.sendToProjector(isPlaybackActive ? 'projector-pause' : 'projector-play');
   }
@@ -936,17 +1233,438 @@ function verifyAdminPasswordDirect(pwd) {
   }
 }
 
-// --- QR Code Helper ---
+// --- Tunnel & QR Code Helpers ---
+let latestTunnelState = { status: 'stopped', url: null, error: null };
+
+function updateTunnelUI(tunnel) {
+  if (!tunnel) return;
+  latestTunnelState = tunnel;
+
+  const status = tunnel.status; // 'stopped', 'starting', 'running', 'error'
+  const url = tunnel.url;
+
+  // Settings Panel UI
+  const badge = document.getElementById('settings-tunnel-status-badge');
+  const badgeText = document.getElementById('settings-tunnel-status-text');
+  const urlBox = document.getElementById('settings-tunnel-url-box');
+  const urlText = document.getElementById('settings-tunnel-url-text');
+  const toggleBtnText = document.getElementById('btn-toggle-tunnel-settings-text');
+
+  if (status === 'running') {
+    if (badge) {
+      badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5';
+    }
+    if (badgeText) badgeText.textContent = 'Online';
+    if (urlBox) urlBox.classList.remove('hidden');
+    if (urlText) urlText.textContent = url || '--';
+    if (toggleBtnText) toggleBtnText.textContent = 'Stop Cloudflare Tunnel';
+  } else if (status === 'starting') {
+    if (badge) {
+      badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1.5';
+    }
+    if (badgeText) badgeText.textContent = 'Connecting...';
+    if (urlBox) urlBox.classList.add('hidden');
+    if (toggleBtnText) toggleBtnText.textContent = 'Connecting...';
+  } else if (status === 'error') {
+    if (badge) {
+      badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20 flex items-center gap-1.5';
+    }
+    if (badgeText) badgeText.textContent = 'Error';
+    if (urlBox) urlBox.classList.add('hidden');
+    if (toggleBtnText) toggleBtnText.textContent = 'Retry Start Tunnel';
+  } else {
+    // stopped
+    if (badge) {
+      badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-surface-container text-on-surface-variant flex items-center gap-1.5 border border-white/5';
+    }
+    if (badgeText) badgeText.textContent = 'Offline';
+    if (urlBox) urlBox.classList.add('hidden');
+    if (toggleBtnText) toggleBtnText.textContent = 'Start Cloudflare Tunnel';
+  }
+
+  // Modal Panes UI
+  const viewStopped = document.getElementById('tunnel-view-stopped');
+  const viewStarting = document.getElementById('tunnel-view-starting');
+  const viewRunning = document.getElementById('tunnel-view-running');
+  const viewError = document.getElementById('tunnel-view-error');
+  const qrTunnelUrlText = document.getElementById('qr-tunnel-url-text');
+  const tunnelErrorMsg = document.getElementById('tunnel-error-msg');
+
+  if (viewStopped) viewStopped.classList.add('hidden');
+  if (viewStarting) viewStarting.classList.add('hidden');
+  if (viewRunning) viewRunning.classList.add('hidden');
+  if (viewError) viewError.classList.add('hidden');
+
+  if (status === 'running') {
+    if (viewRunning) viewRunning.classList.remove('hidden');
+    if (qrTunnelUrlText && url) qrTunnelUrlText.textContent = url;
+  } else if (status === 'starting') {
+    if (viewStarting) viewStarting.classList.remove('hidden');
+  } else if (status === 'error') {
+    if (viewError) viewError.classList.remove('hidden');
+    if (tunnelErrorMsg) tunnelErrorMsg.textContent = tunnel.error || 'Connection failed.';
+  } else {
+    if (viewStopped) viewStopped.classList.remove('hidden');
+  }
+}
+
+async function startCloudflareTunnel() {
+  updateTunnelUI({ status: 'starting' });
+  try {
+    const res = await fetch('/api/tunnel/start', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      updateTunnelUI(data.tunnel);
+      generateQrCode();
+    } else {
+      updateTunnelUI({ status: 'error', error: data.error });
+    }
+  } catch (err) {
+    updateTunnelUI({ status: 'error', error: err.message });
+  }
+}
+
+async function stopCloudflareTunnel() {
+  try {
+    const res = await fetch('/api/tunnel/stop', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      updateTunnelUI(data.tunnel);
+      generateQrCode();
+    }
+  } catch (err) {
+    console.error('Error stopping tunnel:', err);
+  }
+}
+
 async function generateQrCode() {
   try {
-    // Request QR payload from local server
     const res = await fetch('/api/qr');
     const data = await res.json();
     if (data.success) {
-      qrImage.src = data.qrCodeDataUrl;
-      qrUrlText.textContent = data.url;
+      // Local QR
+      if (data.local) {
+        if (qrImage) qrImage.src = data.local.qrCodeDataUrl;
+        if (qrUrlText) qrUrlText.textContent = data.local.url;
+      } else {
+        if (qrImage) qrImage.src = data.qrCodeDataUrl;
+        if (qrUrlText) qrUrlText.textContent = data.url;
+      }
+
+      // Tunnel QR
+      if (data.tunnel) {
+        const qrTunnelImage = document.getElementById('qr-tunnel-image');
+        const qrTunnelUrlText = document.getElementById('qr-tunnel-url-text');
+        if (data.tunnel.qrCodeDataUrl && qrTunnelImage) {
+          qrTunnelImage.src = data.tunnel.qrCodeDataUrl;
+        }
+        if (data.tunnel.url && qrTunnelUrlText) {
+          qrTunnelUrlText.textContent = data.tunnel.url;
+        }
+        updateTunnelUI(data.tunnel);
+      }
     }
   } catch (err) {
     console.error('Error loading QR code:', err);
+  }
+}
+
+// ==========================================
+// SONGBOOK PRINTING & PREVIEW
+// ==========================================
+let printSongbookList = [];
+
+async function openPrintSongbookModal() {
+  const modal = document.getElementById('modal-print-songbook');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+
+  try {
+    const res = await fetch('/api/songs?sortBy=song_number');
+    const data = await res.json();
+    if (data.success) {
+      printSongbookList = data.songs || [];
+    } else {
+      printSongbookList = [...songsList];
+    }
+  } catch (e) {
+    printSongbookList = [...songsList];
+  }
+
+  renderPrintSongbookPreview();
+}
+
+function renderPrintSongbookPreview() {
+  const previewContainer = document.getElementById('print-preview-container');
+  const countEl = document.getElementById('print-preview-count');
+  const sortByEl = document.getElementById('print-sort-by');
+  const catFilterEl = document.getElementById('print-category-filter');
+
+  const sortBy = sortByEl ? sortByEl.value : 'song_number';
+  const catFilter = catFilterEl ? catFilterEl.value : 'All';
+
+  if (!previewContainer) return;
+
+  // Filter songs
+  let filtered = [...printSongbookList];
+  if (catFilter !== 'All') {
+    filtered = filtered.filter(s => (s.category || '').toLowerCase() === catFilter.toLowerCase());
+  }
+
+  // Sort songs
+  filtered.sort((a, b) => {
+    if (sortBy === 'title') {
+      return a.title.localeCompare(b.title);
+    } else if (sortBy === 'artist') {
+      return a.artist.localeCompare(b.artist);
+    } else {
+      return (a.song_number || 0) - (b.song_number || 0);
+    }
+  });
+
+  if (countEl) countEl.textContent = `${filtered.length} songs`;
+
+  if (filtered.length === 0) {
+    previewContainer.innerHTML = `
+      <div class="py-12 text-center text-slate-400">
+        <p class="font-bold text-sm">No songs match the selected filter.</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Build clean 2-column or 3-column classic karaoke songbook layout
+  const rowsHtml = filtered.map(song => `
+    <div class="flex items-center justify-between p-2 rounded border border-slate-100 hover:bg-slate-50 transition-colors">
+      <div class="flex items-center gap-3 min-w-0">
+        <span class="font-mono font-black text-sm text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex-shrink-0">
+          ${String(song.song_number || song.id).padStart(5, '0')}
+        </span>
+        <div class="min-w-0">
+          <p class="font-bold text-xs text-slate-900 truncate leading-tight">${escapeHtml(song.title)}</p>
+          <p class="text-[11px] text-slate-500 truncate mt-0.5">${escapeHtml(song.artist)}</p>
+        </div>
+      </div>
+      <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-1.5 py-0.5 bg-slate-100 rounded ml-2 flex-shrink-0">
+        ${escapeHtml(song.category || 'Pop')}
+      </span>
+    </div>
+  `).join('');
+
+  previewContainer.innerHTML = `
+    <div class="space-y-4">
+      <div class="border-b-2 border-slate-900 pb-3 flex items-center justify-between">
+        <div>
+          <h1 class="font-black text-2xl tracking-tighter text-slate-900 uppercase">KANTA-BAI OFFICIAL SONGBOOK</h1>
+          <p class="text-xs text-slate-500 font-medium">Standard 5-Digit Karaoke Selection Directory &bull; Sorted by: ${sortBy.replace('_', ' ').toUpperCase()}</p>
+        </div>
+        <div class="text-right">
+          <span class="inline-block px-3 py-1 rounded bg-emerald-600 text-white font-mono font-bold text-xs">TOTAL: ${filtered.length} TRACKS</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+        ${rowsHtml}
+      </div>
+    </div>
+  `;
+}
+
+function executePrintSongbook() {
+  const previewContainer = document.getElementById('print-preview-container');
+  const printDoc = document.getElementById('print-songbook-document');
+  if (!previewContainer || !printDoc) return;
+
+  // Clone preview container into print container
+  printDoc.innerHTML = previewContainer.innerHTML;
+  printDoc.classList.remove('hidden');
+
+  // Trigger browser print
+  setTimeout(() => {
+    window.print();
+    printDoc.classList.add('hidden');
+  }, 250);
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ==========================================
+// DESKTOP NOSTALGIC REMOTE KEYPAD & VOICE
+// ==========================================
+let desktopRemoteCode = '';
+let audioCtx = null;
+const NUMBER_WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+
+function playBeepTone(freq = 750) {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.09, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.08);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.08);
+  } catch (e) {}
+}
+
+// Pre-load authentic Platinum Karaoke voice clips (0-9)
+const desktopPlatinumVoiceAudios = {};
+for (let i = 0; i <= 9; i++) {
+  const audio = new Audio(`audio/digit_${i}.mp3`);
+  audio.preload = 'auto';
+  desktopPlatinumVoiceAudios[i] = audio;
+}
+
+function playDesktopPlatinumDigitVoice(digit) {
+  const toggle = document.getElementById('desktop-voice-toggle');
+  if (toggle && !toggle.checked) return;
+  const num = parseInt(digit, 10);
+  if (isNaN(num) || num < 0 || num > 9) return;
+
+  try {
+    const audio = desktopPlatinumVoiceAudios[num] || new Audio(`audio/digit_${num}.mp3`);
+    audio.currentTime = 0;
+    const p = audio.play();
+    if (p !== undefined) {
+      p.catch(() => {
+        speakVoice(NUMBER_WORDS[num] || digit);
+      });
+    }
+  } catch (e) {
+    speakVoice(NUMBER_WORDS[num] || digit);
+  }
+}
+
+function speakVoice(text) {
+  if (!('speechSynthesis' in window)) return;
+  const toggle = document.getElementById('desktop-voice-toggle');
+  if (toggle && !toggle.checked) return;
+
+  try {
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 1.15;
+    utter.pitch = 1.0;
+    utter.lang = 'en-US';
+    window.speechSynthesis.speak(utter);
+  } catch (e) {}
+}
+
+function openDesktopRemoteModal() {
+  const modal = document.getElementById('modal-desktop-remote');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  clearDesktopRemoteInput();
+}
+
+function updateDesktopRemoteDisplay() {
+  const display = document.getElementById('desktop-remote-display');
+  const preview = document.getElementById('desktop-remote-song-preview');
+  if (!display || !preview) return;
+
+  if (!desktopRemoteCode) {
+    display.textContent = '_ _ _ _ _';
+    preview.textContent = 'Type 4-5 digit number from Songbook';
+    preview.className = 'text-xs text-white/70 font-medium truncate text-center min-h-[1.25rem]';
+    return;
+  }
+
+  // Format code display with spaces e.g. 1 0 0 0 1
+  const chars = desktopRemoteCode.split('');
+  while (chars.length < 5) chars.push('_');
+  display.textContent = chars.join(' ');
+
+  // Live lookup
+  if (desktopRemoteCode.length >= 3) {
+    fetch(`/api/songs/by-number/${desktopRemoteCode}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.song) {
+          preview.textContent = `${data.song.title} - ${data.song.artist}`;
+          preview.className = 'text-xs text-primary font-bold truncate text-center min-h-[1.25rem] animate-pulse';
+        } else {
+          preview.textContent = `No song found for #${desktopRemoteCode}`;
+          preview.className = 'text-xs text-red-400 font-medium truncate text-center min-h-[1.25rem]';
+        }
+      })
+      .catch(() => {
+        preview.textContent = `Searching #${desktopRemoteCode}...`;
+      });
+  } else {
+    preview.textContent = `Entering code (${desktopRemoteCode.length}/5)...`;
+    preview.className = 'text-xs text-white/70 font-medium truncate text-center min-h-[1.25rem]';
+  }
+}
+
+function pressDesktopRemoteDigit(digit) {
+  const num = parseInt(digit, 10);
+  if (isNaN(num)) return;
+  if (desktopRemoteCode.length >= 5) return;
+
+  desktopRemoteCode += digit;
+  playDesktopPlatinumDigitVoice(num);
+  playBeepTone(600 + num * 50);
+  updateDesktopRemoteDisplay();
+}
+
+function clearDesktopRemoteInput() {
+  desktopRemoteCode = '';
+  speakVoice('Clear');
+  playBeepTone(350);
+  updateDesktopRemoteDisplay();
+}
+
+async function submitDesktopRemoteInput() {
+  if (!desktopRemoteCode) return;
+
+  const singerInput = document.getElementById('desktop-remote-singer-input');
+  const singer = (singerInput && singerInput.value.trim()) ? singerInput.value.trim() : 'Host';
+  const preview = document.getElementById('desktop-remote-song-preview');
+
+  try {
+    const res = await fetch('/api/queue/by-number', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        songNumber: desktopRemoteCode,
+        singerName: singer,
+        isRemote: false
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      speakVoice('Song Reserved!');
+      playBeepTone(900);
+      setTimeout(() => playBeepTone(1200), 100);
+
+      if (preview) {
+        preview.textContent = `QUEUED: ${data.song.title} (${singer})`;
+        preview.className = 'text-xs text-yellow-300 font-extrabold truncate text-center min-h-[1.25rem]';
+      }
+
+      desktopRemoteCode = '';
+      setTimeout(() => {
+        updateDesktopRemoteDisplay();
+        const modal = document.getElementById('modal-desktop-remote');
+        if (modal) modal.classList.add('hidden');
+      }, 1200);
+    } else {
+      speakVoice('Error');
+      playBeepTone(250);
+      if (preview) {
+        preview.textContent = data.error || 'Failed to queue song';
+        preview.className = 'text-xs text-red-400 font-bold truncate text-center min-h-[1.25rem]';
+      }
+    }
+  } catch (err) {
+    console.error('Remote queue error:', err);
   }
 }

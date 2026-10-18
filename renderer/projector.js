@@ -3,17 +3,31 @@ const videoElement = document.getElementById('video-element');
 const fsSingerName = document.getElementById('fs-singer-name');
 const fsSongTitle = document.getElementById('fs-song-title');
 const fsSongArtist = document.getElementById('fs-song-artist');
+const fsSongNumber = document.getElementById('fs-song-number');
+const fsSongNumberTag = document.getElementById('fs-song-number-tag');
+
 const fsQueueCount = document.getElementById('fs-queue-count');
-const fsQueueGrid = document.getElementById('fs-queue-grid');
+const fsNextTitle = document.getElementById('fs-next-title');
+const fsNextSinger = document.getElementById('fs-next-singer');
+const fsNextSingerTag = document.getElementById('fs-next-singer-tag');
+const fsNextNumber = document.getElementById('fs-next-number');
+const fsNextNumberTag = document.getElementById('fs-next-number-tag');
+
+const projectorReservedToast = document.getElementById('projector-reserved-toast');
+const reservedToastText = document.getElementById('reserved-toast-text');
+
+const fsIdleQueueCount = document.getElementById('fs-idle-queue-count');
+const fsIdleQueueList = document.getElementById('fs-idle-queue-list');
+
 const fsTimeCur = document.getElementById('fs-time-cur');
 const fsProgressBar = document.getElementById('fs-progress-bar');
 const fsTimeTotal = document.getElementById('fs-time-total');
 const fsIdlePrompt = document.getElementById('fs-idle-prompt');
-const projectorHeader = document.getElementById('projector-header');
 const projectorFooter = document.getElementById('projector-footer');
 
 let isFullscreen = false;
-let overlayTimeout = null;
+let footerTimeout = null;
+let reservedToastTimeout = null;
 
 // Helper to format seconds to MM:SS
 function formatTime(sec) {
@@ -23,25 +37,44 @@ function formatTime(sec) {
   return `${m}:${s}`;
 }
 
-// Cinematic Overlays Controller (Auto-hide when playing)
-function showOverlays() {
-  projectorHeader.classList.remove('hidden-overlay-top');
+// Playback footer overlay controller:
+// Auto-hides progress bar after 3.5s so bottom lyrics are NEVER covered!
+// The top bar (song title, singer, next in queue) is PERMANENT.
+function showFooterOverlay() {
+  if (!projectorFooter) return;
   projectorFooter.classList.remove('hidden-overlay-bottom');
 
-  if (overlayTimeout) clearTimeout(overlayTimeout);
+  if (footerTimeout) clearTimeout(footerTimeout);
 
-  // Auto-hide after 3.5 seconds if video is active and playing
   if (videoElement && !videoElement.paused && !videoElement.ended && videoElement.src) {
-    overlayTimeout = setTimeout(() => {
-      projectorHeader.classList.add('hidden-overlay-top');
+    footerTimeout = setTimeout(() => {
       projectorFooter.classList.add('hidden-overlay-bottom');
     }, 3500);
   }
 }
 
-// Reset idle overlay and hide triggers on mouse move or clicks
-document.addEventListener('mousemove', showOverlays);
-document.addEventListener('click', showOverlays);
+// Classic Videoke Reservation Banner Toast
+function showReservationBanner(data) {
+  if (!projectorReservedToast || !reservedToastText) return;
+  const numStr = data.songNumber || (data.song && data.song.song_number) || '';
+  const title = (data.song && data.song.title) || data.title || 'Track';
+  const singer = data.singerName || data.singer || 'Guest';
+  
+  reservedToastText.textContent = `${numStr ? '#' + numStr + ' ' : ''}${title} • Singer: ${singer}`;
+  
+  projectorReservedToast.classList.remove('opacity-0', '-translate-y-4');
+  projectorReservedToast.classList.add('opacity-100', 'translate-y-0');
+
+  if (reservedToastTimeout) clearTimeout(reservedToastTimeout);
+  reservedToastTimeout = setTimeout(() => {
+    projectorReservedToast.classList.remove('opacity-100', 'translate-y-0');
+    projectorReservedToast.classList.add('opacity-0', '-translate-y-4');
+  }, 4500);
+}
+
+// Reveal progress bar temporarily when mouse moves or window clicked
+document.addEventListener('mousemove', showFooterOverlay);
+document.addEventListener('click', showFooterOverlay);
 
 // Native Fullscreen Controller
 function toggleFullscreen() {
@@ -72,71 +105,120 @@ if (window.electronAPI) {
       videoElement.play().catch(err => {
         console.error('Play failed:', err);
       });
+      if (fsIdlePrompt) fsIdlePrompt.classList.add('hidden');
     } else {
       videoElement.src = '';
-      fsIdlePrompt.classList.remove('hidden');
+      if (fsIdlePrompt) fsIdlePrompt.classList.remove('hidden');
     }
 
-    // Set metadata
-    fsSingerName.textContent = data.singer || 'Guest';
-    fsSongTitle.textContent = data.title || '--';
-    fsSongArtist.textContent = data.artist || '--';
+    // Set permanent top banner metadata
+    if (fsSingerName) fsSingerName.textContent = data.singer || 'Guest';
+    if (fsSongTitle) fsSongTitle.textContent = data.title || 'No Song Playing';
+    if (fsSongArtist) fsSongArtist.textContent = data.artist || '--';
     
-    if (data.src) {
-      fsIdlePrompt.classList.add('hidden');
+    if (fsSongNumber && fsSongNumberTag) {
+      if (data.songNumber) {
+        fsSongNumber.textContent = `#${data.songNumber}`;
+        fsSongNumberTag.classList.remove('hidden');
+      } else {
+        fsSongNumberTag.classList.add('hidden');
+      }
     }
     
-    showOverlays();
+    showFooterOverlay();
+  });
+
+  // Listen for song reservation popup
+  window.electronAPI.onProjectorMessage('projector-reserved', (data) => {
+    showReservationBanner(data);
   });
 
   // Listen for playback state modifications
   window.electronAPI.onProjectorMessage('projector-play', () => {
     videoElement.play().catch(console.error);
+    showFooterOverlay();
   });
 
   window.electronAPI.onProjectorMessage('projector-pause', () => {
     videoElement.pause();
+    showFooterOverlay();
   });
 
   window.electronAPI.onProjectorMessage('projector-stop', () => {
     videoElement.pause();
     videoElement.currentTime = 0;
+    if (fsIdlePrompt) fsIdlePrompt.classList.remove('hidden');
   });
 
   window.electronAPI.onProjectorMessage('projector-volume', (vol) => {
     videoElement.volume = vol / 100;
   });
 
-  // Listen for waitlist queue updates to display preview cards
+  // Listen for waitlist queue updates to display Next in Queue permanently
   window.electronAPI.onProjectorMessage('projector-queue', (data) => {
     const queue = data.queue || [];
-    const waitlistCount = queue.filter(item => item.status !== 'singing').length;
-    fsQueueCount.textContent = `${waitlistCount} songs in waitlist`;
-
-    fsQueueGrid.innerHTML = '';
     const pendingSongs = queue.filter(item => item.status !== 'singing');
+    const waitlistCount = pendingSongs.length;
 
-    if (pendingSongs.length === 0) {
-      fsQueueGrid.innerHTML = `
-        <div class="bg-white/5 p-3 rounded-xl flex items-center justify-center border border-white/5 text-xs text-on-surface-variant font-medium col-span-4 h-14">
-          No upcoming songs in the queue
-        </div>
-      `;
+    // Permanent Top Bar - Queue Count
+    if (fsQueueCount) {
+      fsQueueCount.textContent = `(${waitlistCount})`;
+    }
+
+    // Permanent Top Bar - Next in Queue Song & Singer
+    if (pendingSongs.length > 0) {
+      const nextSong = pendingSongs[0];
+      if (fsNextTitle) fsNextTitle.textContent = nextSong.title;
+      if (fsNextSinger) fsNextSinger.textContent = nextSong.singer_name;
+      if (fsNextSingerTag) fsNextSingerTag.classList.remove('hidden');
+      
+      if (fsNextNumber && fsNextNumberTag) {
+        if (nextSong.song_number) {
+          fsNextNumber.textContent = nextSong.song_number;
+          fsNextNumberTag.classList.remove('hidden');
+        } else {
+          fsNextNumberTag.classList.add('hidden');
+        }
+      }
     } else {
-      pendingSongs.slice(0, 4).forEach((item, index) => {
-        const card = document.createElement('div');
-        card.className = 'bg-white/5 hover:bg-white/10 transition-colors p-3 rounded-xl flex items-center gap-3 border border-white/5 min-w-0';
-        card.innerHTML = `
-          <div class="flex-shrink-0 w-8 h-8 rounded-full ${index === 0 ? 'bg-primary/20 text-primary' : 'bg-white/10 text-on-surface-variant'} flex items-center justify-center font-bold text-xs">
-            ${index + 1}
-          </div>
-          <div class="min-w-0 flex-grow">
-            <p class="font-bold text-xs text-white truncate leading-tight">${item.title}</p>
-            <p class="text-[10px] text-on-surface-variant truncate mt-0.5">${item.artist} &bull; <span class="text-primary font-medium">${item.singer_name}</span></p>
+      if (fsNextTitle) fsNextTitle.textContent = 'Waitlist Empty';
+      if (fsNextSingerTag) fsNextSingerTag.classList.add('hidden');
+      if (fsNextNumberTag) fsNextNumberTag.classList.add('hidden');
+    }
+
+    // Idle Screen Waitlist Preview
+    if (fsIdleQueueCount) {
+      fsIdleQueueCount.textContent = `${waitlistCount} songs`;
+    }
+
+    if (fsIdleQueueList) {
+      if (pendingSongs.length === 0) {
+        fsIdleQueueList.innerHTML = `
+          <div class="p-3 rounded-xl bg-white/5 border border-white/5 text-xs text-on-surface-variant text-center">
+            Queue is empty. Use the remote control or enter song code to sing!
           </div>
         `;
-        fsQueueGrid.appendChild(card);
-      });
+      } else {
+        fsIdleQueueList.innerHTML = '';
+        pendingSongs.slice(0, 3).forEach((item, index) => {
+          const row = document.createElement('div');
+          row.className = 'p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between gap-3 text-xs';
+          row.innerHTML = `
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-5 h-5 rounded-full ${index === 0 ? 'bg-primary/20 text-primary' : 'bg-white/10 text-white/50'} flex items-center justify-center font-bold text-[10px] flex-shrink-0">
+                ${index + 1}
+              </span>
+              <div class="truncate">
+                ${item.song_number ? `<span class="text-primary font-mono font-bold mr-1">[#${item.song_number}]</span>` : ''}
+                <span class="font-bold text-white">${item.title}</span>
+                <span class="text-on-surface-variant text-[11px] ml-1">(${item.artist})</span>
+              </div>
+            </div>
+            <span class="text-primary font-bold text-[11px] flex-shrink-0">${item.singer_name}</span>
+          `;
+          fsIdleQueueList.appendChild(row);
+        });
+      }
     }
   });
 }
@@ -147,14 +229,14 @@ videoElement.addEventListener('timeupdate', () => {
   const totalDuration = videoElement.duration || 0;
 
   // Update projector local progress bars
-  fsTimeCur.textContent = formatTime(curTime);
-  fsTimeTotal.textContent = formatTime(totalDuration);
+  if (fsTimeCur) fsTimeCur.textContent = formatTime(curTime);
+  if (fsTimeTotal) fsTimeTotal.textContent = formatTime(totalDuration);
   
   if (totalDuration > 0) {
     const percent = (curTime / totalDuration) * 100;
-    fsProgressBar.style.width = `${percent}%`;
+    if (fsProgressBar) fsProgressBar.style.width = `${percent}%`;
   } else {
-    fsProgressBar.style.width = '0%';
+    if (fsProgressBar) fsProgressBar.style.width = '0%';
   }
 
   // Push updates to main control panel
@@ -167,22 +249,27 @@ videoElement.addEventListener('timeupdate', () => {
 });
 
 videoElement.addEventListener('play', () => {
-  showOverlays();
+  showFooterOverlay();
   if (window.electronAPI && window.electronAPI.sendToControl) {
     window.electronAPI.sendToControl('projector-play-state', 'play');
   }
 });
 
 videoElement.addEventListener('pause', () => {
-  showOverlays();
+  showFooterOverlay();
   if (window.electronAPI && window.electronAPI.sendToControl) {
     window.electronAPI.sendToControl('projector-play-state', 'pause');
   }
 });
 
 videoElement.addEventListener('ended', () => {
-  showOverlays();
+  showFooterOverlay();
   if (window.electronAPI && window.electronAPI.sendToControl) {
     window.electronAPI.sendToControl('projector-ended');
   }
 });
+
+// Notify control window that the projector screen is ready to sync
+if (window.electronAPI && window.electronAPI.sendToControl) {
+  window.electronAPI.sendToControl('projector-ready');
+}

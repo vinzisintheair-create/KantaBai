@@ -34,6 +34,7 @@ async function initDb() {
   await connection.exec(`
     CREATE TABLE IF NOT EXISTS songs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      song_number INTEGER UNIQUE,
       title TEXT NOT NULL,
       artist TEXT NOT NULL,
       file_path TEXT NOT NULL UNIQUE,
@@ -42,6 +43,26 @@ async function initDb() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  // Migration: Ensure song_number column exists for existing databases
+  const columns = await connection.all('PRAGMA table_info(songs);');
+  const hasSongNumber = columns.some(c => c.name === 'song_number');
+  if (!hasSongNumber) {
+    await connection.run('ALTER TABLE songs ADD COLUMN song_number INTEGER;');
+  }
+  await connection.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_songs_song_number ON songs(song_number);');
+
+  // Backfill any songs missing a song_number
+  const unnumberedSongs = await connection.all('SELECT id FROM songs WHERE song_number IS NULL ORDER BY id ASC');
+  if (unnumberedSongs.length > 0) {
+    const maxRow = await connection.get('SELECT MAX(song_number) as max_num FROM songs');
+    let nextNum = (maxRow && maxRow.max_num && maxRow.max_num >= 10001) ? maxRow.max_num + 1 : 10001;
+    for (const s of unnumberedSongs) {
+      await connection.run('UPDATE songs SET song_number = ? WHERE id = ?', [nextNum, s.id]);
+      nextNum++;
+    }
+    console.log(`Backfilled ${unnumberedSongs.length} songs with unique song numbers starting at ${10001}.`);
+  }
 
   // Create queue table
   await connection.exec(`
@@ -72,17 +93,70 @@ async function initDb() {
 }
 
 // Songs CRUD
-async function addSong({ title, artist, file_path, category }) {
+async function addSong({ title, artist, file_path, category, song_number }) {
   const connection = await getDbConnection();
-  return connection.run(
-    `INSERT OR IGNORE INTO songs (title, artist, file_path, category) VALUES (?, ?, ?, ?)`,
-    [title, artist, file_path, category]
+
+  // If song already exists by file_path
+  const existing = await connection.get('SELECT * FROM songs WHERE file_path = ?', [file_path]);
+  if (existing) {
+    if (song_number && !existing.song_number) {
+      const taken = await connection.get('SELECT id FROM songs WHERE song_number = ? AND id != ?', [song_number, existing.id]);
+      if (!taken) {
+        await connection.run('UPDATE songs SET song_number = ? WHERE id = ?', [song_number, existing.id]);
+      }
+      return connection.get('SELECT * FROM songs WHERE id = ?', [existing.id]);
+    }
+    return existing;
+  }
+
+  // Determine unique song_number
+  let finalNumber = parseInt(song_number, 10);
+  if (isNaN(finalNumber) || finalNumber <= 0) {
+    const maxRow = await connection.get('SELECT MAX(song_number) as max_num FROM songs');
+    finalNumber = (maxRow && maxRow.max_num && maxRow.max_num >= 10001) ? maxRow.max_num + 1 : 10001;
+  } else {
+    // If requested number is already taken, assign next available
+    const taken = await connection.get('SELECT id FROM songs WHERE song_number = ?', [finalNumber]);
+    if (taken) {
+      const maxRow = await connection.get('SELECT MAX(song_number) as max_num FROM songs');
+      finalNumber = (maxRow && maxRow.max_num && maxRow.max_num >= 10001) ? maxRow.max_num + 1 : 10001;
+    }
+  }
+
+  await connection.run(
+    `INSERT OR IGNORE INTO songs (song_number, title, artist, file_path, category) VALUES (?, ?, ?, ?, ?)`,
+    [finalNumber, title, artist, file_path, category]
   );
+  return connection.get('SELECT * FROM songs WHERE file_path = ?', [file_path]);
 }
 
-async function getAllSongs() {
+async function getAllSongs(sortBy = 'song_number') {
   const connection = await getDbConnection();
-  return connection.all('SELECT * FROM songs ORDER BY title ASC');
+  if (sortBy === 'title') {
+    return connection.all('SELECT * FROM songs ORDER BY title ASC, artist ASC');
+  } else if (sortBy === 'artist') {
+    return connection.all('SELECT * FROM songs ORDER BY artist ASC, title ASC');
+  }
+  return connection.all('SELECT * FROM songs ORDER BY song_number ASC, title ASC');
+}
+
+async function getSongByNumber(songNumber) {
+  const connection = await getDbConnection();
+  const num = parseInt(songNumber, 10);
+  if (isNaN(num)) return null;
+  return connection.get('SELECT * FROM songs WHERE song_number = ?', [num]);
+}
+
+async function updateSongNumber(songId, songNumber) {
+  const connection = await getDbConnection();
+  const num = parseInt(songNumber, 10);
+  if (isNaN(num) || num <= 0) throw new Error('Invalid song number');
+  const existing = await connection.get('SELECT id FROM songs WHERE song_number = ? AND id != ?', [num, songId]);
+  if (existing) {
+    throw new Error(`Song number ${num} is already assigned to another song.`);
+  }
+  await connection.run('UPDATE songs SET song_number = ? WHERE id = ?', [num, songId]);
+  return connection.get('SELECT * FROM songs WHERE id = ?', [songId]);
 }
 
 async function searchSongs(query, category) {
@@ -91,8 +165,8 @@ async function searchSongs(query, category) {
   const params = [];
 
   if (query) {
-    sql += ' AND (title LIKE ? OR artist LIKE ?)';
-    params.push(`%${query}%`, `%${query}%`);
+    sql += ' AND (title LIKE ? OR artist LIKE ? OR CAST(song_number AS TEXT) LIKE ?)';
+    params.push(`%${query}%`, `%${query}%`, `%${query}%`);
   }
 
   if (category && category !== 'All Songs') {
@@ -110,7 +184,7 @@ async function searchSongs(query, category) {
       params.push(category);
     }
   } else {
-    sql += ' ORDER BY title ASC';
+    sql += ' ORDER BY song_number ASC, title ASC';
   }
 
   return connection.all(sql, params);
@@ -134,7 +208,7 @@ async function getQueue() {
   const connection = await getDbConnection();
   return connection.all(`
     SELECT q.id as queue_id, q.singer_name, q.status, q.sort_order, q.added_at,
-           s.id as song_id, s.title, s.artist, s.file_path, s.category
+           s.id as song_id, s.song_number, s.title, s.artist, s.file_path, s.category
     FROM queue q
     JOIN songs s ON q.song_id = s.id
     WHERE q.status != 'finished'
@@ -175,7 +249,7 @@ async function getNowPlaying() {
   const connection = await getDbConnection();
   return connection.get(`
     SELECT q.id as queue_id, q.singer_name, q.status, q.added_at,
-           s.id as song_id, s.title, s.artist, s.file_path, s.category
+           s.id as song_id, s.song_number, s.title, s.artist, s.file_path, s.category
     FROM queue q
     JOIN songs s ON q.song_id = s.id
     WHERE q.status = 'singing'
@@ -222,6 +296,8 @@ module.exports = {
   getDbConnection,
   addSong,
   getAllSongs,
+  getSongByNumber,
+  updateSongNumber,
   searchSongs,
   addToQueue,
   getQueue,

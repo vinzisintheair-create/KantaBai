@@ -83,11 +83,17 @@ async function createProjectorWindow() {
 
 ipcMain.handle('dialog:openDirectory', async () => {
   if (!mainWindow) return null;
+  const currentSettings = settingsManager.load();
+  let defaultPath;
+  if (currentSettings.libraryPath && require('fs').existsSync(currentSettings.libraryPath)) {
+    defaultPath = currentSettings.libraryPath;
+  }
   const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory'],
-    title: 'Select Karaoke Video Library Directory'
+    title: 'Select Karaoke Video Library Directory',
+    defaultPath: defaultPath,
+    properties: ['openDirectory', 'createDirectory']
   });
-  if (canceled) {
+  if (canceled || !filePaths || filePaths.length === 0) {
     return null;
   } else {
     return filePaths[0];

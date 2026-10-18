@@ -7,13 +7,21 @@ const SUPPORTED_EXTENSIONS = ['.mp4', '.mkv', '.avi', '.webm', '.mpeg'];
 // List of standard categories
 const CATEGORIES = [
   'English', 'OPM', 'Pop', 'Rock', 'Ballads', 'Love Songs', 
-  'Disney', 'Christmas', 'KPOP', 'Japanese', 'Chinese'
+  'Disney', 'Christmas', 'KPOP', 'Japanese', 'Chinese', 'YouTube'
 ];
 
 function parseFilename(filename) {
   const ext = path.extname(filename);
-  const base = path.basename(filename, ext).trim();
+  let base = path.basename(filename, ext).trim();
   
+  let songNumber = null;
+  // Match leading number (3 to 6 digits) followed by delimiter e.g. " - ", " _ ", ". ", or space
+  const numMatch = base.match(/^(\d{3,6})\s*[-_.]\s*(.*)$/);
+  if (numMatch) {
+    songNumber = parseInt(numMatch[1], 10);
+    base = numMatch[2].trim();
+  }
+
   let artist = 'Unknown Artist';
   let title = base;
 
@@ -25,7 +33,7 @@ function parseFilename(filename) {
     }
   }
 
-  return { artist, title };
+  return { artist, title, song_number: songNumber };
 }
 
 function getFilesRecursively(dir, fileList = []) {
@@ -80,7 +88,7 @@ async function scanLibrary(libraryPath) {
     if (!indexedPaths.has(relativePath)) {
       // Parse file name for metadata
       const filename = path.basename(absPath);
-      const { artist, title } = parseFilename(filename);
+      const { artist, title, song_number } = parseFilename(filename);
 
       // Determine category based on parent folder name if it matches, else default to "Pop"
       let category = 'Pop';
@@ -99,7 +107,8 @@ async function scanLibrary(libraryPath) {
         title,
         artist,
         file_path: relativePath,
-        category
+        category,
+        song_number
       });
       added++;
     }

@@ -12,10 +12,10 @@
 
   <style>
     .glass-panel {
-      background: rgba(14, 21, 14, 0.45);
-      backdrop-filter: blur(25px);
-      -webkit-backdrop-filter: blur(25px);
-      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(14, 21, 14, 0.65);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
     }
 
     body {
@@ -24,19 +24,15 @@
       font-family: 'Plus Jakarta Sans', sans-serif;
     }
 
-    /* Auto-hide classes for cinematic immersion */
+    /* Auto-hide classes for progress footer */
     .auto-hide {
-      transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.8s ease;
-    }
-    
-    .hidden-overlay-top {
-      transform: translateY(-120%);
-      opacity: 0;
+      transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.6s ease;
     }
 
     .hidden-overlay-bottom {
-      transform: translateY(120%);
+      transform: translateY(140%);
       opacity: 0;
+      pointer-events: none;
     }
   </style>
 
@@ -58,7 +54,7 @@
   </script>
 </head>
 
-<body class="overflow-hidden flex flex-col justify-between h-screen py-12 px-12 relative select-none">
+<body class="overflow-hidden h-screen w-screen relative select-none bg-black">
 
   <!-- Video Background Element -->
   <div class="absolute inset-0 z-0 bg-black flex items-center justify-center overflow-hidden">
@@ -67,58 +63,93 @@
     </video>
   </div>
 
-  <!-- Top Overlay (Now Singing & Next in Queue) -->
-  <header id="projector-header" class="w-full flex flex-col items-center gap-4 z-20 auto-hide">
-    <div class="flex items-center gap-4">
-      <!-- Now Singing Pill -->
-      <div class="glass-panel px-8 py-4 rounded-full flex items-center gap-6 shadow-2xl border border-white/5">
-        <div class="flex flex-col items-center border-r border-white/10 pr-6">
-          <span class="text-[9px] font-extrabold uppercase tracking-widest text-primary/80">Now Singing</span>
-          <span id="fs-singer-name" class="text-base font-extrabold text-on-surface">--</span>
-        </div>
-        <div class="flex items-center gap-4">
-          <div class="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center text-primary shadow-inner border border-white/5">
-            <span class="material-symbols-outlined text-xl">music_note</span>
-          </div>
-          <div>
-            <h1 id="fs-song-title" class="text-sm font-bold leading-none truncate max-w-[280px]">--</h1>
-            <p id="fs-song-artist" class="text-[11px] text-on-surface-variant mt-1.5 leading-none truncate max-w-[240px]">--</p>
-          </div>
-        </div>
+  <!-- Permanent Top Banner (Always Visible - Placed above video lyric area) -->
+  <header id="projector-permanent-bar" class="absolute top-0 inset-x-0 z-30 px-5 py-2.5 bg-gradient-to-b from-black/90 via-black/65 to-transparent border-b border-white/5 flex items-center justify-between gap-4 pointer-events-none">
+    
+    <!-- Left Section: Now Singing Info -->
+    <div class="flex items-center gap-3 min-w-0 flex-1">
+      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/20 text-primary border border-primary/30 text-[10px] font-extrabold uppercase tracking-wider flex-shrink-0 shadow-sm">
+        <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+        <span>Now Singing</span>
+      </div>
+
+      <div id="fs-song-number-tag" class="hidden px-2 py-0.5 rounded bg-primary/25 border border-primary/40 text-primary font-mono font-black text-xs shadow-sm">
+        <span id="fs-song-number">--</span>
+      </div>
+      
+      <div class="min-w-0 flex items-center gap-2">
+        <span id="fs-song-title" class="text-sm font-extrabold text-white truncate max-w-[280px] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">Waiting for track...</span>
+        <span class="text-xs text-white/40 font-medium">•</span>
+        <span id="fs-song-artist" class="text-xs text-on-surface-variant truncate max-w-[200px] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">--</span>
+      </div>
+
+      <div class="flex-shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-white border border-white/15 text-xs font-bold drop-shadow-md">
+        <span class="material-symbols-outlined text-[13px] text-primary font-bold">mic</span>
+        <span id="fs-singer-name">--</span>
       </div>
     </div>
 
-    <!-- Next in Queue Preview -->
-    <div class="w-full max-w-4xl glass-panel rounded-2xl p-4 flex flex-col gap-2.5 shadow-2xl border border-white/5">
-      <div class="flex justify-between items-center px-1">
-        <span class="text-[10px] font-extrabold text-primary uppercase tracking-widest">Next in Queue</span>
-        <div class="flex items-center gap-1.5 text-on-surface-variant">
-          <span class="material-symbols-outlined text-[14px]">group</span>
-          <span id="fs-queue-count" class="text-[10px] font-bold">0 songs in waitlist</span>
-        </div>
+    <!-- Right Section: Up Next in Queue with Who Chose the Song -->
+    <div id="projector-next-container" class="flex items-center gap-2 flex-shrink-0 max-w-[50%] justify-end">
+      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-highest/80 text-on-surface-variant border border-white/10 text-[10px] font-bold uppercase tracking-wider flex-shrink-0 shadow-sm">
+        <span class="material-symbols-outlined text-[12px] text-primary">queue_music</span>
+        <span>Up Next</span>
+        <span id="fs-queue-count" class="text-primary font-extrabold">(0)</span>
       </div>
-      <div class="grid grid-cols-4 gap-4" id="fs-queue-grid">
-        <!-- Dynamically populated next 4 songs -->
-        <div class="bg-white/5 p-3 rounded-xl flex items-center justify-center border border-white/5 text-xs text-on-surface-variant font-medium col-span-4 h-14">
-          No upcoming songs in the queue
-        </div>
+      
+      <div class="min-w-0 flex items-center gap-1.5 bg-black/60 px-3 py-1 rounded-full border border-white/15 shadow-sm">
+        <span id="fs-next-number-tag" class="hidden px-1.5 py-0.2 rounded bg-white/10 text-yellow-300 font-mono font-extrabold text-[11px]">[#<span id="fs-next-number">--</span>]</span>
+        <span id="fs-next-title" class="text-xs font-bold text-white truncate max-w-[180px] drop-shadow-md">Waitlist Empty</span>
+        <span id="fs-next-singer-tag" class="hidden text-[11px] text-primary font-bold truncate max-w-[140px]">• Chose by: <span id="fs-next-singer">--</span></span>
       </div>
     </div>
+
   </header>
 
-  <!-- Center Screen Display (Idle Prompt) -->
-  <section class="flex-grow flex flex-col items-center justify-center w-full z-10 text-center pointer-events-none">
-    <div id="fs-idle-prompt" class="text-white/10 text-4xl uppercase tracking-[1.5em] font-extrabold select-none">
-      KANTA-BAI
+  <!-- Nostalgic Karaoke Reservation Banner (TJ Media / Megapro style popup) -->
+  <div id="projector-reserved-toast" class="absolute top-14 inset-x-0 z-40 flex justify-center pointer-events-none transition-all duration-500 opacity-0 -translate-y-4">
+    <div class="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600/95 via-teal-700/95 to-emerald-800/95 text-white border-2 border-emerald-400/60 shadow-[0_0_35px_rgba(16,185,129,0.6)] flex items-center gap-3 backdrop-blur-md">
+      <div class="w-8 h-8 rounded-xl bg-yellow-400/20 border border-yellow-400/40 flex items-center justify-center text-yellow-300 flex-shrink-0 shadow-sm">
+        <span class="material-symbols-outlined text-lg font-black animate-bounce">bookmark_added</span>
+      </div>
+      <div>
+        <p class="text-[9px] font-black uppercase tracking-widest text-emerald-200">Song Reserved</p>
+        <p id="reserved-toast-text" class="text-xs font-black text-white tracking-wide">--</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Center Screen Display (Idle Mode when no track is playing) -->
+  <section id="fs-idle-prompt" class="absolute inset-0 z-10 flex flex-col items-center justify-center p-6 pointer-events-none text-center">
+    <div class="glass-panel p-8 rounded-3xl max-w-lg w-full border border-white/10 shadow-2xl flex flex-col items-center gap-5">
+      <div class="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-lg shadow-primary/10">
+        <span class="material-symbols-outlined text-3xl font-bold animate-pulse">mic</span>
+      </div>
+      <div>
+        <h1 class="text-2xl font-black text-white tracking-widest uppercase">KANTA-BAI</h1>
+        <p class="text-[11px] text-on-surface-variant mt-1 font-semibold tracking-wider uppercase">Premium Videoke Experience</p>
+      </div>
+
+      <div class="w-full border-t border-white/10 pt-4 space-y-2.5">
+        <div class="flex justify-between items-center text-xs px-1 text-on-surface-variant font-bold">
+          <span>UPCOMING WAITLIST</span>
+          <span id="fs-idle-queue-count" class="text-primary font-extrabold">0 songs</span>
+        </div>
+        <div id="fs-idle-queue-list" class="space-y-1.5 max-h-44 overflow-hidden text-left">
+          <div class="p-3 rounded-xl bg-white/5 border border-white/5 text-xs text-on-surface-variant text-center">
+            Queue is empty. Select a song on the control desk or scan the QR code to sing!
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
-  <!-- Bottom Overlay (Playback Progress slider status) -->
-  <footer id="projector-footer" class="w-full flex flex-col items-center gap-6 z-20 auto-hide">
-    <div class="flex items-center gap-6 bg-surface-container-highest/65 backdrop-blur-md px-8 py-3.5 rounded-full border border-white/10 shadow-xl w-full max-w-2xl justify-between">
+  <!-- Bottom Overlay (Playback Progress slider - Auto-hides so lyrics are NEVER covered) -->
+  <footer id="projector-footer" class="absolute bottom-6 inset-x-0 flex flex-col items-center gap-4 z-20 auto-hide pointer-events-none hidden-overlay-bottom">
+    <div class="flex items-center gap-6 bg-black/75 backdrop-blur-md px-8 py-2.5 rounded-full border border-white/15 shadow-2xl w-full max-w-lg justify-between">
       <div class="flex items-center gap-4 flex-grow">
         <span id="fs-time-cur" class="text-xs text-on-surface-variant font-semibold">00:00</span>
-        <div class="h-1 bg-white/15 rounded-full overflow-hidden flex-grow relative">
+        <div class="h-1.5 bg-white/15 rounded-full overflow-hidden flex-grow relative">
           <div id="fs-progress-bar" class="h-full bg-primary w-0 shadow-[0_0_10px_rgba(83,224,118,0.6)]"></div>
         </div>
         <span id="fs-time-total" class="text-xs text-on-surface-variant font-semibold">00:00</span>
