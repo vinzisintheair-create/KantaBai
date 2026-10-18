@@ -641,7 +641,47 @@ function setupEventListeners() {
       paneVoiceToggle.checked = e.target.checked;
     });
   }
+
+  // Modal Remote Keypad Listeners
+  const btnDesktopRemoteEnter = document.getElementById('btn-desktop-remote-enter');
+  if (btnDesktopRemoteEnter) {
+    btnDesktopRemoteEnter.addEventListener('click', submitDesktopRemoteInput);
+  }
+
+  document.querySelectorAll('.dt-key').forEach(btn => {
+    btn.addEventListener('click', () => {
+      pressDesktopRemoteDigit(btn.getAttribute('data-val'));
+    });
+  });
+
+  // Physical Keyboard Support for Videoke Remote
+  window.addEventListener('keydown', (e) => {
+    const isModalOpen = !document.getElementById('modal-desktop-remote')?.classList.contains('hidden');
+    const isRemoteTab = currentTab === 'remote';
+
+    if (!isModalOpen && !isRemoteTab) return;
+
+    // Don't intercept if user is typing in a text input (except remote display)
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && activeEl.id !== 'pane-remote-singer-input' && activeEl.id !== 'desktop-remote-singer-input') {
+      return;
+    }
+
+    if (e.key >= '0' && e.key <= '9') {
+      e.preventDefault();
+      pressDesktopRemoteDigit(e.key);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      submitDesktopRemoteInput();
+    } else if (e.key === 'Backspace' && activeEl?.tagName !== 'INPUT') {
+      e.preventDefault();
+      clearDesktopRemoteInput();
+    }
+  });
 }
+
+// Global expose
+window.switchTab = switchTab;
 
 // --- UI Navigation Controllers ---
 function switchTab(tabName) {

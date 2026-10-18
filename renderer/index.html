@@ -539,6 +539,121 @@
         </div>
       </section>
 
+      <!-- View: Remote (Nostalgic Videoke Remote & Quick Dial) -->
+      <section id="pane-remote" class="view-pane">
+        <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          <!-- Left Column: Authentic Videoke Remote Pad -->
+          <div class="lg:col-span-5 flex flex-col items-center">
+            <div class="glass-panel p-6 sm:p-7 rounded-3xl w-full max-w-sm shadow-2xl border border-primary/25 relative bg-surface-container/70">
+              
+              <!-- Remote Header -->
+              <div class="flex items-center justify-between pb-3 mb-4 border-b border-white/10">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-8 h-8 rounded-xl bg-primary/20 text-primary flex items-center justify-center font-bold">
+                    <span class="material-symbols-outlined text-lg animate-pulse">pin</span>
+                  </div>
+                  <div>
+                    <h3 class="text-sm font-black text-white uppercase tracking-wider">Videoke Remote</h3>
+                    <p class="text-[10px] text-on-surface-variant font-semibold">Enter Song # to queue immediately</p>
+                  </div>
+                </div>
+
+                <label class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container border border-white/10 text-[10px] font-bold text-on-surface-variant cursor-pointer active:scale-95 transition-transform">
+                  <input id="pane-remote-voice-toggle" type="checkbox" checked class="w-3.5 h-3.5 accent-primary cursor-pointer">
+                  <span class="flex items-center gap-1">
+                    <span class="material-symbols-outlined text-xs text-primary">volume_up</span> Voice
+                  </span>
+                </label>
+              </div>
+
+              <!-- Retro LCD Display -->
+              <div class="bg-black/95 p-4 rounded-2xl border-2 border-primary/40 mb-4 shadow-inner space-y-2 text-center">
+                <div class="flex items-center justify-between text-[10px] text-primary/70 font-mono font-bold tracking-widest uppercase">
+                  <span>DIGITAL SELECTOR</span>
+                  <span class="text-emerald-400 font-mono text-[9px]">READY</span>
+                </div>
+
+                <div id="pane-remote-display" class="font-mono text-4xl font-black text-primary tracking-[0.25em] py-1 select-none drop-shadow-[0_0_12px_rgba(83,224,118,0.5)]">
+                  _ _ _ _ _
+                </div>
+
+                <div id="pane-remote-preview" class="p-2 rounded-xl bg-white/5 border border-white/5 text-xs text-white/70 min-h-[38px] flex items-center justify-center truncate px-2 font-medium">
+                  Enter 4-5 digit song code from Songbook
+                </div>
+              </div>
+
+              <!-- Singer Name Input -->
+              <div class="space-y-1 mb-4">
+                <label class="text-[11px] font-bold text-on-surface-variant flex items-center gap-1">
+                  <span class="material-symbols-outlined text-xs text-primary">person</span>
+                  <span>Singer Name</span>
+                </label>
+                <input id="pane-remote-singer-input" type="text" placeholder="Enter singer name..." value="Host"
+                  class="w-full bg-surface-container-highest border border-white/10 rounded-xl px-4 py-2.5 text-xs focus:ring-1 focus:ring-primary outline-none text-white">
+              </div>
+
+              <!-- Keypad Grid -->
+              <div class="grid grid-cols-3 gap-3 mb-2 select-none">
+                <button class="pn-key p-4 rounded-2xl bg-surface-container hover:bg-surface-container-high border border-white/10 text-white font-mono font-black text-2xl active:scale-90 active:bg-primary/20 active:text-primary transition-all flex items-center justify-center shadow" data-val="1">1</button>
+                <button class="pn-key p-4 rounded-2xl bg-surface-container hover:bg-surface-container-high border border-white/10 text-white font-mono font-black text-2xl active:scale-90 active:bg-primary/20 active:text-primary transition-all flex items-center justify-center shadow" data-val="2">2</button>
+                <button class="pn-key p-4 rounded-2xl bg-surface-container hover:bg-surface-container-high border border-white/10 text-white font-mono font-black text-2xl active:scale-90 active:bg-primary/20 active:text-primary transition-all flex items-center justify-center shadow" data-val="3">3</button>
+
+                <button class="pn-key p-4 rounded-2xl bg-surface-container hover:bg-surface-container-high border border-white/10 text-white font-mono font-black text-2xl active:scale-90 active:bg-primary/20 active:text-primary transition-all flex items-center justify-center shadow" data-val="4">4</button>
+                <button class="pn-key p-4 rounded-2xl bg-surface-container hover:bg-surface-container-high border border-white/10 text-white font-mono font-black text-2xl active:scale-90 active:bg-primary/20 active:text-primary transition-all flex items-center justify-center shadow" data-val="5">5</button>
+                <button class="pn-key p-4 rounded-2xl bg-surface-container hover:bg-surface-container-high border border-white/10 text-white font-mono font-black text-2xl active:scale-90 active:bg-primary/20 active:text-primary transition-all flex items-center justify-center shadow" data-val="6">6</button>
+
+                <button class="pn-key p-4 rounded-2xl bg-surface-container hover:bg-surface-container-high border border-white/10 text-white font-mono font-black text-2xl active:scale-90 active:bg-primary/20 active:text-primary transition-all flex items-center justify-center shadow" data-val="7">7</button>
+                <button class="pn-key p-4 rounded-2xl bg-surface-container hover:bg-surface-container-high border border-white/10 text-white font-mono font-black text-2xl active:scale-90 active:bg-primary/20 active:text-primary transition-all flex items-center justify-center shadow" data-val="8">8</button>
+                <button class="pn-key p-4 rounded-2xl bg-surface-container hover:bg-surface-container-high border border-white/10 text-white font-mono font-black text-2xl active:scale-90 active:bg-primary/20 active:text-primary transition-all flex items-center justify-center shadow" data-val="9">9</button>
+
+                <button id="btn-pane-remote-clear" class="p-4 rounded-2xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 font-black text-sm active:scale-90 transition-all flex items-center justify-center shadow">
+                  <span class="material-symbols-outlined text-xl">backspace</span>
+                </button>
+                <button class="pn-key p-4 rounded-2xl bg-surface-container hover:bg-surface-container-high border border-white/10 text-white font-mono font-black text-2xl active:scale-90 active:bg-primary/20 active:text-primary transition-all flex items-center justify-center shadow" data-val="0">0</button>
+                <button id="btn-pane-remote-enter" class="p-4 rounded-2xl bg-primary text-on-primary font-black text-sm active:scale-90 transition-all flex items-center justify-center shadow-lg shadow-primary/25">
+                  ENTER
+                </button>
+              </div>
+
+              <p class="text-[10px] text-on-surface-variant/60 text-center font-mono mt-2">
+                Tip: You can also type numbers directly on your physical keyboard
+              </p>
+            </div>
+          </div>
+
+          <!-- Right Column: Quick Dial Songbook Directory -->
+          <div class="lg:col-span-7 flex flex-col">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 mb-4">
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="px-2 py-0.5 rounded-full bg-primary/20 text-primary font-mono font-bold text-[10px] tracking-wider uppercase">Quick Dial</span>
+                  <h3 class="text-xl font-extrabold text-white">Songbook Directory</h3>
+                </div>
+                <p class="text-xs text-on-surface-variant">Find any song's assigned number or click 'Use Code' to auto-fill the keypad</p>
+              </div>
+              <button class="px-3.5 py-1.5 rounded-xl bg-surface-container-high hover:bg-surface-container border border-white/10 text-xs font-bold text-primary flex items-center gap-1.5 transition-all shadow-sm active:scale-95" onclick="switchTab('songbook')">
+                <span class="material-symbols-outlined text-sm">library_music</span>
+                <span>Full Songbook</span>
+              </button>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="relative mb-4">
+              <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
+              <input id="remote-dir-search" type="text" placeholder="Filter by title, artist, or 5-digit number..."
+                class="w-full bg-surface-container-highest border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-xs focus:ring-2 focus:ring-primary focus:border-primary outline-none text-white placeholder:text-on-surface-variant/50 transition-all">
+            </div>
+
+            <!-- Scrollable list of songs with codes -->
+            <div id="remote-dir-list" class="flex-grow max-h-[520px] overflow-y-auto space-y-2.5 pr-1">
+              <!-- Dynamically populated by renderRemoteDirectory() -->
+            </div>
+          </div>
+
+        </div>
+      </section>
+
       <!-- View: Queue -->
       <section id="pane-queue" class="view-pane">
         <div class="grid grid-cols-12 gap-8">
